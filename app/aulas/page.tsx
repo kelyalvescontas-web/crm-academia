@@ -31,11 +31,19 @@ export default function AulasPage() {
     carregarAulas();
   }, []);
 
+  function primeiroNome(nomeCompleto: string) {
+    if (!nomeCompleto) return "";
+
+    const primeiro = nomeCompleto.trim().split(" ")[0].toLowerCase();
+
+    return primeiro.charAt(0).toUpperCase() + primeiro.slice(1);
+  }
+
   async function carregarAulas() {
-  const response = await fetch("/api/aulas");
-  const aulasData = await response.json();
-  setAulas(aulasData);
-}
+    const response = await fetch("/api/aulas");
+    const aulasData = await response.json();
+    setAulas(aulasData);
+  }
 
   function formatarData(dataISO?: string) {
     if (!dataISO) return "";
@@ -44,12 +52,85 @@ export default function AulasPage() {
     return `${dia}/${mes}/${ano}`;
   }
 
+  function limparTelefone(telefone: string) {
+    return telefone.replace(/\D/g, "");
+  }
+
   function corStatus(status: string) {
     if (status === "COMPARECEU") return "text-green-600";
     if (status === "FALTOU") return "text-red-600";
     if (status === "CONFIRMADA") return "text-blue-600";
 
     return "text-yellow-600";
+  }
+
+  function gerarLinkWhatsApp(aula: any, tipo: string) {
+    const aluno = primeiroNome(aula.nomeAluno);
+    const colaboradoraNome = primeiroNome(aula.colaboradora);
+    const telefoneLimpo = limparTelefone(aula.telefone);
+
+    let mensagem = "";
+
+    if (tipo === "confirmacao") {
+      mensagem = `Oie ${aluno}, tudo bem?
+
+Sua aula experimental foi agendada pela atendente *${colaboradoraNome}*.
+
+Data: *${formatarData(aula.data)}*
+Horário: *${aula.horario}*
+Modalidade: *${aula.modalidade}*
+
+Te esperamos por aqui!
+
+*PRIX ACADEMIA*
+Avenida Irmãos Pereira, 251 - Esquina com o posto Flex`;
+    }
+
+    if (tipo === "lembrete") {
+      mensagem = `Oie ${aluno}, tudo bem?
+
+Passando para te lembrar que sua aula experimental é *Hoje*.
+
+Horário: *${aula.horario}*
+Modalidade: *${aula.modalidade}*
+
+Estamos te esperando! Venha com roupa confortável, tênis e sua garrafinha de água para aproveitar ao máximo seu treino experimental!
+
+*${colaboradoraNome}*
+
+*PRIX ACADEMIA*
+Avenida Irmãos Pereira, 251 - Esquina com o posto Flex`;
+    }
+
+    if (tipo === "posAula") {
+      mensagem = `Oie ${aluno}, tudo bem?
+
+Aqui é a ${colaboradoraNome} da Prix Academia.
+
+Queria saber se gostou da sua aula experimental 😊
+
+Montamos uma ficha de treino personalizada para te ajudar a alcançar seus objetivos da melhor forma!
+
+Aproveita para começar ainda essa semana com a gente 🚀
+
+Qualquer dúvida, estou por aqui 😊`;
+    }
+
+    if (tipo === "naoCompareceu") {
+      mensagem = `Oie ${aluno}
+
+Aqui é a ${colaboradoraNome} da Prix Academia.
+
+Ficamos te esperando para sua aula experimental, mas você não compareceu.
+
+Queremos remarcar para você conhecer a academia e já deixar um treino personalizado preparado para seus objetivos 😊
+
+Vamos agendar ainda essa semana?`;
+    }
+
+    return `https://wa.me/55${telefoneLimpo}?text=${encodeURIComponent(
+      mensagem
+    )}`;
   }
 
   const aulasFiltradas = aulas.filter((aula) => {
@@ -180,78 +261,76 @@ export default function AulasPage() {
           </div>
         </div>
 
+        <div className="mb-6 flex flex-wrap gap-3">
+          <div className="border-4 border-blue-600 text-blue-600 font-bold px-5 py-3 rounded-xl bg-white">
+            CONFIRMAÇÃO
+          </div>
+
+          <div className="border-4 border-yellow-500 text-yellow-500 font-bold px-5 py-3 rounded-xl bg-white">
+            LEMBRETE
+          </div>
+
+          <div className="border-4 border-green-600 text-green-600 font-bold px-5 py-3 rounded-xl bg-white">
+            PÓS AULA
+          </div>
+
+          <div className="border-4 border-red-600 text-red-600 font-bold px-5 py-3 rounded-xl bg-white">
+            NÃO COMPARECEU
+          </div>
+        </div>
+
         <div className="bg-white p-4 md:p-8 rounded-2xl shadow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block mb-2">
-                Nome do aluno
-              </label>
+              <label className="block mb-2">Nome do aluno</label>
 
               <input
                 type="text"
                 value={nome}
-                onChange={(e) =>
-                  setNome(e.target.value.toUpperCase())
-                }
+                onChange={(e) => setNome(e.target.value.toUpperCase())}
                 className="w-full border rounded-xl p-3"
               />
             </div>
 
             <div>
-              <label className="block mb-2">
-                Telefone
-              </label>
+              <label className="block mb-2">Telefone</label>
 
               <input
                 type="text"
                 value={telefone}
-                onChange={(e) =>
-                  setTelefone(e.target.value)
-                }
+                onChange={(e) => setTelefone(e.target.value)}
                 className="w-full border rounded-xl p-3"
               />
             </div>
 
             <div>
-              <label className="block mb-2">
-                Data da aula
-              </label>
+              <label className="block mb-2">Data da aula</label>
 
               <input
                 type="date"
                 value={data}
-                onChange={(e) =>
-                  setData(e.target.value)
-                }
+                onChange={(e) => setData(e.target.value)}
                 className="w-full border rounded-xl p-3"
               />
             </div>
 
             <div>
-              <label className="block mb-2">
-                Horário
-              </label>
+              <label className="block mb-2">Horário</label>
 
               <input
                 type="time"
                 value={horario}
-                onChange={(e) =>
-                  setHorario(e.target.value)
-                }
+                onChange={(e) => setHorario(e.target.value)}
                 className="w-full border rounded-xl p-3"
               />
             </div>
 
             <div>
-              <label className="block mb-2">
-                Modalidade
-              </label>
+              <label className="block mb-2">Modalidade</label>
 
               <select
                 value={modalidade}
-                onChange={(e) =>
-                  setModalidade(e.target.value)
-                }
+                onChange={(e) => setModalidade(e.target.value)}
                 className="w-full border rounded-xl p-3"
               >
                 <option>MUSCULAÇÃO</option>
@@ -266,35 +345,23 @@ export default function AulasPage() {
             </div>
 
             <div>
-              <label className="block mb-2">
-                Colaboradora
-              </label>
+              <label className="block mb-2">Colaboradora</label>
 
               <input
                 type="text"
                 value={colaboradora}
-                onChange={(e) =>
-                  setColaboradora(
-                    e.target.value.toUpperCase()
-                  )
-                }
+                onChange={(e) => setColaboradora(e.target.value.toUpperCase())}
                 className="w-full border rounded-xl p-3"
               />
             </div>
           </div>
 
           <div className="mt-6">
-            <label className="block mb-2">
-              Observações
-            </label>
+            <label className="block mb-2">Observações</label>
 
             <textarea
               value={observacoes}
-              onChange={(e) =>
-                setObservacoes(
-                  e.target.value.toUpperCase()
-                )
-              }
+              onChange={(e) => setObservacoes(e.target.value.toUpperCase())}
               className="w-full border rounded-xl p-3 h-32"
             />
           </div>
@@ -302,164 +369,100 @@ export default function AulasPage() {
 
         <div className="mt-10 bg-white p-4 md:p-6 rounded-2xl shadow">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-            <h2 className="text-2xl font-bold">
-              Aulas Agendadas
-            </h2>
+            <h2 className="text-2xl font-bold">Aulas Agendadas</h2>
 
             <input
               type="text"
               placeholder="Buscar aula..."
               value={busca}
-              onChange={(e) =>
-                setBusca(e.target.value)
-              }
+              onChange={(e) => setBusca(e.target.value)}
               className="w-full md:w-96 border p-3 rounded-xl"
             />
           </div>
 
           <div className="overflow-auto">
-            <table className="w-full min-w-[1200px]">
+            <table className="w-full min-w-[1400px]">
               <thead>
                 <tr className="border-b">
-                  <th className="p-3 text-left">
-                    Aluno
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Telefone
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Data
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Horário
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Modalidade
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Status
-                  </th>
-
-                  <th className="p-3 text-left">
-                    WhatsApp
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Presença
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Ações
-                  </th>
+                  <th className="p-3 text-left">Aluno</th>
+                  <th className="p-3 text-left">Telefone</th>
+                  <th className="p-3 text-left">Data</th>
+                  <th className="p-3 text-left">Horário</th>
+                  <th className="p-3 text-left">Modalidade</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">WhatsApp</th>
+                  <th className="p-3 text-left">Presença</th>
+                  <th className="p-3 text-left">Ações</th>
                 </tr>
               </thead>
 
               <tbody>
                 {aulasFiltradas.map((aula) => (
-                  <tr
-                    key={aula.id}
-                    className="border-b"
-                  >
-                    <td className="p-3">
-                      {aula.nomeAluno}
-                    </td>
+                  <tr key={aula.id} className="border-b">
+                    <td className="p-3">{aula.nomeAluno}</td>
+                    <td className="p-3">{aula.telefone}</td>
+                    <td className="p-3">{formatarData(aula.data)}</td>
+                    <td className="p-3">{aula.horario}</td>
+                    <td className="p-3">{aula.modalidade}</td>
 
-                    <td className="p-3">
-                      {aula.telefone}
-                    </td>
-
-                    <td className="p-3">
-                      {formatarData(aula.data)}
-                    </td>
-
-                    <td className="p-3">
-                      {aula.horario}
-                    </td>
-
-                    <td className="p-3">
-                      {aula.modalidade}
-                    </td>
-
-                    <td
-                      className={`p-3 font-bold ${corStatus(
-                        aula.status
-                      )}`}
-                    >
+                    <td className={`p-3 font-bold ${corStatus(aula.status)}`}>
                       {aula.status || "AGENDADA"}
                     </td>
 
                     <td className="p-3">
-                      <a
-                        href={`https://wa.me/55${
-                          aula.telefone
-                        }?text=${encodeURIComponent(
-                          `Olá ${aula.nomeAluno}, tudo bem?
+                      <div className="flex flex-col gap-2">
+                        <a
+                          href={gerarLinkWhatsApp(aula, "confirmacao")}
+                          target="_blank"
+                          className="bg-blue-600 text-white px-3 py-2 rounded-lg text-center font-bold"
+                        >
+                          Confirmação
+                        </a>
 
-Sua aula experimental está confirmada 💪
+                        <a
+                          href={gerarLinkWhatsApp(aula, "lembrete")}
+                          target="_blank"
+                          className="bg-yellow-500 text-white px-3 py-2 rounded-lg text-center font-bold"
+                        >
+                          Lembrete
+                        </a>
 
-📅 Data: ${formatarData(
-                            aula.data
-                          )}
+                        <a
+                          href={gerarLinkWhatsApp(aula, "posAula")}
+                          target="_blank"
+                          className="bg-green-600 text-white px-3 py-2 rounded-lg text-center font-bold"
+                        >
+                          Pós Aula
+                        </a>
 
-⏰ Horário: ${
-                            aula.horario
-                          }
-
-🏋️ Modalidade: ${
-                            aula.modalidade
-                          }
-
-👩‍🏫 Colaboradora: ${
-                            aula.colaboradora
-                          }
-
-Estamos te esperando!`
-                        )}`}
-                        target="_blank"
-                        className="text-green-600 font-bold"
-                      >
-                        WhatsApp
-                      </a>
+                        <a
+                          href={gerarLinkWhatsApp(aula, "naoCompareceu")}
+                          target="_blank"
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg text-center font-bold"
+                        >
+                          Não Compareceu
+                        </a>
+                      </div>
                     </td>
 
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() =>
-                            alterarStatus(
-                              aula,
-                              "CONFIRMADA"
-                            )
-                          }
+                          onClick={() => alterarStatus(aula, "CONFIRMADA")}
                           className="bg-blue-600 text-white px-3 py-1 rounded-lg"
                         >
                           Confirmar
                         </button>
 
                         <button
-                          onClick={() =>
-                            alterarStatus(
-                              aula,
-                              "COMPARECEU"
-                            )
-                          }
+                          onClick={() => alterarStatus(aula, "COMPARECEU")}
                           className="bg-green-600 text-white px-3 py-1 rounded-lg"
                         >
                           Veio
                         </button>
 
                         <button
-                          onClick={() =>
-                            alterarStatus(
-                              aula,
-                              "FALTOU"
-                            )
-                          }
+                          onClick={() => alterarStatus(aula, "FALTOU")}
                           className="bg-red-600 text-white px-3 py-1 rounded-lg"
                         >
                           Faltou
@@ -470,20 +473,14 @@ Estamos te esperando!`
                     <td className="p-3">
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() =>
-                            editarAula(aula)
-                          }
+                          onClick={() => editarAula(aula)}
                           className="bg-yellow-500 text-white px-3 py-1 rounded-lg"
                         >
                           Editar
                         </button>
 
                         <button
-                          onClick={() =>
-                            excluirAula(
-                              aula.id
-                            )
-                          }
+                          onClick={() => excluirAula(aula.id)}
                           className="bg-red-600 text-white px-3 py-1 rounded-lg"
                         >
                           Excluir
@@ -496,11 +493,8 @@ Estamos te esperando!`
             </table>
           </div>
 
-          {aulasFiltradas.length ===
-            0 && (
-            <p className="mt-6 text-gray-500">
-              Nenhuma aula encontrada.
-            </p>
+          {aulasFiltradas.length === 0 && (
+            <p className="mt-6 text-gray-500">Nenhuma aula encontrada.</p>
           )}
         </div>
       </section>

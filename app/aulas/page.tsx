@@ -136,44 +136,20 @@ export default function AulasPage() {
     carregarAulas();
   }
 
-async function alterarStatus(
-  aula: any,
-  status: string
-) {
-  try {
-    const response = await fetch("/api/aulas", {
+  async function alterarStatus(aula: any, status: string) {
+    await fetch("/api/aulas", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        id: aula.id,
-        nomeAluno: aula.nomeAluno,
-        telefone: aula.telefone,
-        data: aula.data,
-        horario: aula.horario,
-        modalidade: aula.modalidade,
-        colaboradora: aula.colaboradora,
-        observacoes: aula.observacoes,
-        status: status,
+        ...aula,
+        status,
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(
-        "Erro ao atualizar status"
-      );
-    }
-
-    await carregarAulas();
-
-    alert("Status atualizado!");
-  } catch (error) {
-    console.error(error);
-
-    alert("Erro ao atualizar status");
+    carregarAulas();
   }
-}
 
   return (
     <main className="min-h-screen flex flex-col md:flex-row bg-gray-100">

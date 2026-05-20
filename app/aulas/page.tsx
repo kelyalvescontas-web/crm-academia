@@ -32,10 +32,10 @@ export default function AulasPage() {
   }, []);
 
   async function carregarAulas() {
-    const response = await fetch("/api/aulas");
-    const data = await response.json();
-    setAulas(data);
-  }
+  const response = await fetch("/api/aulas");
+  const aulasData = await response.json();
+  setAulas(aulasData);
+}
 
   function formatarData(dataISO?: string) {
     if (!dataISO) return "";

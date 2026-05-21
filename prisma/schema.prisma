@@ -18,16 +18,22 @@ model Usuario {
 }
 
 model Aula {
-  id            Int      @id @default(autoincrement())
-  nomeAluno     String
-  telefone      String
-  data           String
-  horario       String
-  modalidade    String
-  status        String?  @default("AGENDADA")
-  observacoes   String?
-  colaboradora  String?
-  createdAt     DateTime @default(now())
+  id                 Int      @id @default(autoincrement())
+  nomeAluno          String
+  telefone           String
+  data               String
+  horario            String
+  modalidade         String
+  status             String   @default("AGENDADA")
+  observacoes        String?
+  colaboradora       String
+  veio               Boolean  @default(false)
+  faltou             Boolean  @default(false)
+  remarcou           Boolean  @default(false)
+  posAulaRealizado   Boolean  @default(false)
+  vendaEfetivada     Boolean  @default(false)
+  codigoMatricula    String?
+  createdAt          DateTime @default(now())
 }
 
 model Diaria {

@@ -1,59 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Sidebar() {
-  const router = useRouter();
+  const pathname = usePathname();
 
-  const [cargo, setCargo] = useState("");
-
-  useEffect(() => {
-    const usuarioSalvo = localStorage.getItem("usuario");
-
-    if (usuarioSalvo) {
-      const usuario = JSON.parse(usuarioSalvo);
-      setCargo(usuario.cargo);
-    }
-  }, []);
-
-  function sair() {
-    localStorage.removeItem("usuario");
-    router.push("/login");
-  }
+  const menu = [
+    {
+      nome: "Dashboard",
+      rota: "/",
+    },
+    {
+      nome: "Aulas Agendadas",
+      rota: "/aulas",
+    },
+    {
+      nome: "Diárias",
+      rota: "/diarias",
+    },
+    {
+      nome: "Calendário",
+      rota: "/calendario",
+    },
+    {
+      nome: "Usuários",
+      rota: "/usuarios",
+    },
+    {
+      nome: "Relatórios",
+      rota: "/relatorios",
+    },
+    {
+      nome: "Configurações",
+      rota: "/configuracoes",
+    },
+  ];
 
   return (
-    <aside className="w-full md:w-64 bg-blue-900 text-white md:min-h-screen p-6 md:p-8 flex md:flex-col flex-row md:justify-between items-center md:items-start gap-6 overflow-x-auto">
-      <div className="flex md:block items-center gap-8">
-        <h1 className="text-2xl md:text-4xl font-bold md:mb-16 whitespace-nowrap">
-          CRM Academia
-        </h1>
+    <div className="w-72 min-h-screen bg-blue-900 text-white flex flex-col p-6">
+      <h1 className="text-4xl font-bold mb-12">
+        CRM Academia
+      </h1>
 
-        <nav className="flex md:flex-col flex-row gap-6 md:gap-8 text-lg md:text-2xl whitespace-nowrap">
-          <a href="/">Dashboard</a>
-
-          <a href="/aulas">Aulas</a>
-
-          <a href="/diarias">Diárias</a>
-      
-          <a href="/calendario">Calendário</a>
-
-          {cargo === "ADMIN" && <a href="/cadastro">Usuários</a>}
-
-          {cargo === "ADMIN" && <a href="/relatorios">Relatórios</a>}
-
-          {(cargo === "ADMIN" || cargo === "FINANCEIRO") && (
-            <a href="/configuracoes">Configurações</a>
-          )}
-        </nav>
+      <div className="flex flex-col gap-4">
+        {menu.map((item) => (
+          <Link
+            key={item.rota}
+            href={item.rota}
+            className={`text-2xl px-4 py-4 rounded-xl transition-all duration-200 ${
+              pathname === item.rota
+                ? "bg-white text-blue-900 font-bold"
+                : "hover:bg-blue-800"
+            }`}
+          >
+            {item.nome}
+          </Link>
+        ))}
       </div>
-
-      <button
-        onClick={sair}
-        className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-bold whitespace-nowrap"
-      >
-        Sair
-      </button>
-    </aside>
+    </div>
   );
 }

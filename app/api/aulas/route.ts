@@ -27,13 +27,20 @@ export async function POST(req: Request) {
 
     const aula = await prisma.aula.create({
       data: {
-        nomeAluno: body.nomeAluno,
-        telefone: body.telefone,
-        data: body.data,
-        horario: body.horario,
-        modalidade: body.modalidade,
-        colaboradora: body.colaboradora,
-        observacoes: body.observacoes,
+        nomeAluno: body.nomeAluno || "",
+        telefone: body.telefone || "",
+        data: body.data || "",
+        horario: body.horario || "",
+        modalidade: body.modalidade || "MUSCULAÇÃO",
+        colaboradora: body.colaboradora || "",
+        observacoes: body.observacoes || "",
+        status: body.status || "AGENDADA",
+        veio: Boolean(body.veio),
+        faltou: Boolean(body.faltou),
+        remarcou: Boolean(body.remarcou),
+        posAulaRealizado: Boolean(body.posAulaRealizado),
+        vendaEfetivada: Boolean(body.vendaEfetivada),
+        codigoMatricula: body.codigoMatricula || "",
       },
     });
 
@@ -54,16 +61,23 @@ export async function PUT(req: Request) {
 
     const aula = await prisma.aula.update({
       where: {
-        id: body.id,
+        id: Number(body.id),
       },
       data: {
-        nomeAluno: body.nomeAluno,
-        telefone: body.telefone,
-        data: body.data,
-        horario: body.horario,
-        modalidade: body.modalidade,
-        colaboradora: body.colaboradora,
-        observacoes: body.observacoes,
+        nomeAluno: body.nomeAluno || "",
+        telefone: body.telefone || "",
+        data: body.data || "",
+        horario: body.horario || "",
+        modalidade: body.modalidade || "MUSCULAÇÃO",
+        colaboradora: body.colaboradora || "",
+        observacoes: body.observacoes || "",
+        status: body.status || "AGENDADA",
+        veio: Boolean(body.veio),
+        faltou: Boolean(body.faltou),
+        remarcou: Boolean(body.remarcou),
+        posAulaRealizado: Boolean(body.posAulaRealizado),
+        vendaEfetivada: Boolean(body.vendaEfetivada),
+        codigoMatricula: body.codigoMatricula || "",
       },
     });
 
@@ -80,17 +94,15 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const { id } = await req.json();
+    const body = await req.json();
 
     await prisma.aula.delete({
       where: {
-        id,
+        id: Number(body.id),
       },
     });
 
-    return Response.json({
-      message: "Aula excluída",
-    });
+    return Response.json({ ok: true });
   } catch (error) {
     console.log(error);
 

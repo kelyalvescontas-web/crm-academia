@@ -12,9 +12,12 @@ export async function GET() {
     const hoje = hojeISO();
 
     const aulas = await prisma.aula.findMany();
+
     const diarias = await prisma.diaria.findMany();
 
-    const aulasHoje = aulas.filter((aula) => aula.data === hoje);
+    const aulasHoje = aulas.filter(
+      (aula) => aula.data === hoje
+    );
 
     const diariasEncerrandoHoje = diarias.filter(
       (diaria) => diaria.dataFinal === hoje
@@ -24,16 +27,26 @@ export async function GET() {
       (diaria) => diaria.dataFinal >= hoje
     );
 
+    // NOVO SISTEMA PELOS SWITCHS
+
     const totalCompareceu = aulas.filter(
-      (aula) => aula.status === "COMPARECEU"
+      (aula) => aula.veio === true
     ).length;
 
     const totalFaltou = aulas.filter(
-      (aula) => aula.status === "FALTOU"
+      (aula) => aula.faltou === true
     ).length;
 
     const totalConfirmada = aulas.filter(
-      (aula) => aula.status === "CONFIRMADA"
+      (aula) => aula.status === "AGENDADA"
+    ).length;
+
+    const totalVendas = aulas.filter(
+      (aula) => aula.vendaEfetivada === true
+    ).length;
+
+    const totalRemarcou = aulas.filter(
+      (aula) => aula.remarcou === true
     ).length;
 
     const taxaComparecimento =
@@ -49,20 +62,26 @@ export async function GET() {
     });
 
     const modalidadeMaisProcurada =
-      Object.entries(modalidades).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Nenhuma";
+      Object.entries(modalidades).sort(
+        (a, b) => b[1] - a[1]
+      )[0]?.[0] || "Nenhuma";
 
     return Response.json({
       totalAulas: aulas.length,
       aulasHoje: aulasHoje.length,
       totalDiariasAtivas: diariasAtivas.length,
       diariasEncerrandoHoje,
+
       totalCompareceu,
       totalFaltou,
       totalConfirmada,
+      totalVendas,
+      totalRemarcou,
+
       taxaComparecimento,
       modalidadeMaisProcurada,
     });
+
   } catch (error) {
     console.log(error);
 

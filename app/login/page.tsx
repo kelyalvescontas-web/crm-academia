@@ -14,29 +14,33 @@ export default function LoginPage() {
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          email: email.trim(),
           senha,
         }),
       });
 
       const data = await response.json();
 
-      if (data.error) {
-        alert(data.error);
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao fazer login");
         return;
       }
 
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(data)
-      );
+      localStorage.setItem("usuario", JSON.stringify(data));
+
+      if (data.unidadeId) {
+        localStorage.setItem(
+          "unidadeSelecionadaId",
+          String(data.unidadeId)
+        );
+      }
 
       router.push("/");
     } catch (error) {
+      console.log(error);
       alert("Erro ao fazer login");
     }
   }
@@ -49,16 +53,13 @@ export default function LoginPage() {
         </h1>
 
         <div className="space-y-5">
-
           <div>
             <label>Email</label>
 
             <input
               type="email"
               value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full border p-3 rounded-xl"
             />
           </div>
@@ -69,9 +70,7 @@ export default function LoginPage() {
             <input
               type="password"
               value={senha}
-              onChange={(e) =>
-                setSenha(e.target.value)
-              }
+              onChange={(e) => setSenha(e.target.value)}
               className="w-full border p-3 rounded-xl"
             />
           </div>
@@ -82,7 +81,6 @@ export default function LoginPage() {
           >
             Entrar
           </button>
-
         </div>
       </div>
     </main>

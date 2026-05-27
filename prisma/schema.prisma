@@ -8,12 +8,27 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Unidade {
+  id             Int             @id @default(autoincrement())
+  nome           String
+  createdAt      DateTime        @default(now())
+
+  usuarios       Usuario[]
+  aulas          Aula[]
+  diarias        Diaria[]
+  configuracoes  Configuracao[]
+}
+
 model Usuario {
   id        Int      @id @default(autoincrement())
   nome      String
   email     String   @unique
   senha     String
   cargo     String
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
   createdAt DateTime @default(now())
 }
 
@@ -27,12 +42,17 @@ model Aula {
   status             String   @default("AGENDADA")
   observacoes        String?
   colaboradora       String
+
   veio               Boolean  @default(false)
   faltou             Boolean  @default(false)
   remarcou           Boolean  @default(false)
   posAulaRealizado   Boolean  @default(false)
   vendaEfetivada     Boolean  @default(false)
   codigoMatricula    String?
+
+  unidadeId          Int?
+  unidade            Unidade? @relation(fields: [unidadeId], references: [id])
+
   createdAt          DateTime @default(now())
 }
 
@@ -46,5 +66,30 @@ model Diaria {
   quantidadeDias   Int
   observacoes      String?
   colaboradora     String?
+
+  unidadeId        Int?
+  unidade          Unidade? @relation(fields: [unidadeId], references: [id])
+
   createdAt        DateTime @default(now())
+}
+
+model Configuracao {
+  id             Int      @id @default(autoincrement())
+  nomeAcademia  String
+  telefone      String
+  endereco      String
+  metaMensal    Int
+  corSistema    String
+  logo          String?
+
+  mensagemConfirmacao     String?
+  mensagemLembrete        String?
+  mensagemPosAula         String?
+  mensagemNaoCompareceu   String?
+  mensagemDiaria          String?
+
+  unidadeId     Int?
+  unidade       Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt     DateTime @default(now())
 }

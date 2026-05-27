@@ -4,21 +4,30 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 
+function pegarUnidadeAtual() {
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+
+  if (usuario.cargo === "ADMIN_GERAL") {
+    return localStorage.getItem("unidadeSelecionadaId");
+  }
+
+  return String(usuario.unidadeId || "");
+}
+
 export default function DiariasPage() {
   const router = useRouter();
 
+  const [diarias, setDiarias] = useState<any[]>([]);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [busca, setBusca] = useState("");
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cpf, setCpf] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [quantidadeDias, setQuantidadeDias] = useState(1);
-  const [observacoes, setObservacoes] = useState("");
   const [colaboradora, setColaboradora] = useState("");
-
-  const [diarias, setDiarias] = useState<any[]>([]);
+  const [observacoes, setObservacoes] = useState("");
 
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
@@ -29,50 +38,34 @@ export default function DiariasPage() {
     }
 
     carregarDiarias();
-  }, []);
+  }, [router]);
 
-  async function carregarDiarias() {
-    const response = await fetch("/api/diarias");
-    const data = await response.json();
-    setDiarias(data);
-  }
-
-  function calcularDataFinal(data: string, dias: number) {
-    const novaData = new Date(data);
-
-    novaData.setDate(novaData.getDate() + dias);
-
-    return novaData.toISOString().split("T")[0];
-  }
-
-  function formatarData(dataISO?: string) {
+  function formatarData(dataISO: string) {
     if (!dataISO) return "";
+    if (dataISO.includes("/")) return dataISO;
 
-    const [ano, mes, dia] = dataISO.split("-");
+    const partes = dataISO.split("-");
+    if (partes.length !== 3) return dataISO;
+
+    const [ano, mes, dia] = partes;
     return `${dia}/${mes}/${ano}`;
   }
 
-  function statusDiaria(dataFinal: string) {
-    const hoje = new Date();
-    const final = new Date(dataFinal);
+  async function carregarDiarias() {
+    const unidadeId = pegarUnidadeAtual();
 
-    if (final < hoje) {
-      return "ENCERRADA";
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      return;
     }
 
-    return "ATIVA";
+    const response = await fetch(`/api/diarias?unidadeId=${unidadeId}`, {
+      cache: "no-store",
+    });
+
+    const data = await response.json();
+    setDiarias(Array.isArray(data) ? data : []);
   }
-
-  const diariasFiltradas = diarias.filter((diaria) => {
-    const termo = busca.toUpperCase();
-
-    return (
-      diaria.nome?.toUpperCase().includes(termo) ||
-      diaria.telefone?.includes(busca) ||
-      diaria.cpf?.includes(busca) ||
-      diaria.colaboradora?.toUpperCase().includes(termo)
-    );
-  });
 
   function limparFormulario() {
     setEditandoId(null);
@@ -81,66 +74,60 @@ export default function DiariasPage() {
     setCpf("");
     setDataInicio("");
     setQuantidadeDias(1);
-    setObservacoes("");
     setColaboradora("");
+    setObservacoes("");
   }
 
   async function salvarDiaria() {
-    const dataFinal = calcularDataFinal(
-      dataInicio,
-      quantidadeDias
-    );
+    const unidadeId = pegarUnidadeAtual();
 
-    const dados = {
-      id: editandoId,
-      nome: nome.toUpperCase(),
-      telefone,
-      cpf,
-      dataInicio,
-      quantidadeDias,
-      dataFinal,
-      observacoes: observacoes.toUpperCase(),
-      colaboradora: colaboradora.toUpperCase(),
-    };
-
-    if (editandoId) {
-      await fetch("/api/diarias", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dados),
-      });
-
-      alert("Diária editada com sucesso!");
-    } else {
-      await fetch("/api/diarias", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dados),
-      });
-
-      alert("Diária cadastrada com sucesso!");
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      return;
     }
 
-    limparFormulario();
-    carregarDiarias();
+    const response = await fetch("/api/diarias", {
+      method: editandoId ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: editandoId,
+        nome: nome.trim().toUpperCase(),
+        telefone: telefone.trim(),
+        cpf: cpf.trim(),
+        dataInicio,
+        quantidadeDias,
+        colaboradora: colaboradora.trim().toUpperCase(),
+        observacoes: observacoes.trim().toUpperCase(),
+        unidadeId: Number(unidadeId),
+      }),
+    });
+
+    if (response.ok) {
+      await carregarDiarias();
+      limparFormulario();
+      setMostrarFormulario(false);
+    } else {
+      alert("Erro ao salvar diária");
+    }
   }
 
   function editarDiaria(diaria: any) {
     setEditandoId(diaria.id);
-    setNome(diaria.nome);
-    setTelefone(diaria.telefone);
-    setCpf(diaria.cpf);
-    setDataInicio(diaria.dataInicio);
-    setQuantidadeDias(diaria.quantidadeDias);
-    setObservacoes(diaria.observacoes);
-    setColaboradora(diaria.colaboradora);
+    setNome(diaria.nome || "");
+    setTelefone(diaria.telefone || "");
+    setCpf(diaria.cpf || "");
+    setDataInicio(diaria.dataInicio || "");
+    setQuantidadeDias(diaria.quantidadeDias || 1);
+    setColaboradora(diaria.colaboradora || "");
+    setObservacoes(diaria.observacoes || "");
+    setMostrarFormulario(true);
   }
 
   async function excluirDiaria(id: number) {
+    if (!confirm("Deseja excluir esta diária?")) return;
+
     await fetch("/api/diarias", {
       method: "DELETE",
       headers: {
@@ -149,312 +136,159 @@ export default function DiariasPage() {
       body: JSON.stringify({ id }),
     });
 
-    carregarDiarias();
+    await carregarDiarias();
   }
 
   return (
-    <main className="min-h-screen flex flex-col md:flex-row bg-gray-100">
+    <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-4 md:p-10">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-            Controle de Diárias
-          </h1>
+      <section className="flex-1 p-10">
+        <div className="flex justify-between items-center mb-10">
+          <h1 className="text-5xl font-bold">Diárias</h1>
 
-          <div className="flex flex-wrap gap-3">
-            {editandoId && (
+          <button
+            onClick={() => {
+              limparFormulario();
+              setMostrarFormulario(true);
+            }}
+            className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+          >
+            Cadastrar Diária
+          </button>
+        </div>
+
+        <div className="bg-white p-8 rounded-2xl shadow mb-8">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="p-4 text-left">Nome</th>
+                <th className="p-4 text-left">Telefone</th>
+                <th className="p-4 text-left">Data Inicial</th>
+                <th className="p-4 text-left">Data Final</th>
+                <th className="p-4 text-left">Dias</th>
+                <th className="p-4 text-left">Ações</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {diarias.map((diaria) => (
+                <tr key={diaria.id} className="border-b">
+                  <td className="p-4">{diaria.nome}</td>
+                  <td className="p-4">{diaria.telefone}</td>
+                  <td className="p-4">{formatarData(diaria.dataInicio)}</td>
+                  <td className="p-4">{formatarData(diaria.dataFinal)}</td>
+                  <td className="p-4">{diaria.quantidadeDias}</td>
+
+                  <td className="p-4">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => editarDiaria(diaria)}
+                        className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => excluirDiaria(diaria.id)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {diarias.length === 0 && (
+                <tr>
+                  <td className="p-4 text-gray-500" colSpan={6}>
+                    Nenhuma diária cadastrada para esta unidade.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {mostrarFormulario && (
+          <div className="bg-white p-8 rounded-2xl shadow">
+            <h2 className="text-4xl font-bold mb-6">
+              {editandoId ? "Editar Diária" : "Cadastrar Diária"}
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input label="Nome" value={nome} setValue={setNome} />
+              <Input label="Telefone" value={telefone} setValue={setTelefone} />
+              <Input label="CPF" value={cpf} setValue={setCpf} />
+
+              <Input
+                label="Data Inicial"
+                type="date"
+                value={dataInicio}
+                setValue={setDataInicio}
+              />
+
+              <Input
+                label="Quantidade de Dias"
+                type="number"
+                value={quantidadeDias}
+                setValue={setQuantidadeDias}
+              />
+
+              <Input
+                label="Colaboradora"
+                value={colaboradora}
+                setValue={setColaboradora}
+              />
+            </div>
+
+            <div className="mt-6">
+              <label className="block mb-2">Observações</label>
+
+              <textarea
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                className="w-full border rounded-xl p-3 h-32"
+              />
+            </div>
+
+            <div className="flex gap-4 mt-6">
               <button
-                onClick={limparFormulario}
-                className="bg-gray-500 text-white px-5 py-3 rounded-xl"
+                onClick={salvarDiaria}
+                className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+              >
+                {editandoId ? "Salvar Edição" : "Salvar Diária"}
+              </button>
+
+              <button
+                onClick={() => {
+                  limparFormulario();
+                  setMostrarFormulario(false);
+                }}
+                className="bg-gray-500 text-white px-8 py-4 rounded-xl font-bold"
               >
                 Cancelar
               </button>
-            )}
-
-            <button
-              onClick={salvarDiaria}
-              className="bg-blue-900 text-white px-5 py-3 rounded-xl"
-            >
-              {editandoId
-                ? "Salvar Edição"
-                : "Cadastrar Diária"}
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 md:p-8 rounded-2xl shadow">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label>Nome</label>
-
-              <input
-                type="text"
-                value={nome}
-                onChange={(e) =>
-                  setNome(
-                    e.target.value.toUpperCase()
-                  )
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label>Telefone</label>
-
-              <input
-                type="text"
-                value={telefone}
-                onChange={(e) =>
-                  setTelefone(e.target.value)
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label>CPF</label>
-
-              <input
-                type="text"
-                value={cpf}
-                onChange={(e) =>
-                  setCpf(e.target.value)
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label>Data Início</label>
-
-              <input
-                type="date"
-                value={dataInicio}
-                onChange={(e) =>
-                  setDataInicio(e.target.value)
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label>Quantidade Dias</label>
-
-              <input
-                type="number"
-                value={quantidadeDias}
-                onChange={(e) =>
-                  setQuantidadeDias(
-                    Number(e.target.value)
-                  )
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <label>Colaboradora</label>
-
-              <input
-                type="text"
-                value={colaboradora}
-                onChange={(e) =>
-                  setColaboradora(
-                    e.target.value.toUpperCase()
-                  )
-                }
-                className="w-full border p-3 rounded-xl"
-              />
             </div>
           </div>
-
-          <div className="mt-6">
-            <label>Observações</label>
-
-            <textarea
-              value={observacoes}
-              onChange={(e) =>
-                setObservacoes(
-                  e.target.value.toUpperCase()
-                )
-              }
-              className="w-full border p-3 rounded-xl h-32"
-            />
-          </div>
-        </div>
-
-        <div className="mt-10 bg-white p-4 md:p-6 rounded-2xl shadow">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-            <h2 className="text-2xl font-bold">
-              Diárias Cadastradas
-            </h2>
-
-            <input
-              type="text"
-              placeholder="Buscar diária..."
-              value={busca}
-              onChange={(e) =>
-                setBusca(e.target.value)
-              }
-              className="w-full md:w-96 border p-3 rounded-xl"
-            />
-          </div>
-
-          <div className="overflow-auto">
-            <table className="w-full min-w-[1200px]">
-              <thead>
-                <tr className="border-b">
-                  <th className="p-3 text-left">
-                    Nome
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Telefone
-                  </th>
-
-                  <th className="p-3 text-left">
-                    CPF
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Início
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Final
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Dias
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Status
-                  </th>
-
-                  <th className="p-3 text-left">
-                    WhatsApp
-                  </th>
-
-                  <th className="p-3 text-left">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {diariasFiltradas.map((diaria) => (
-                  <tr
-                    key={diaria.id}
-                    className="border-b"
-                  >
-                    <td className="p-3">
-                      {diaria.nome}
-                    </td>
-
-                    <td className="p-3">
-                      {diaria.telefone}
-                    </td>
-
-                    <td className="p-3">
-                      {diaria.cpf}
-                    </td>
-
-                    <td className="p-3">
-                      {formatarData(
-                        diaria.dataInicio
-                      )}
-                    </td>
-
-                    <td className="p-3">
-                      {formatarData(
-                        diaria.dataFinal
-                      )}
-                    </td>
-
-                    <td className="p-3">
-                      {diaria.quantidadeDias}
-                    </td>
-
-                    <td
-                      className={`p-3 font-bold ${
-                        statusDiaria(
-                          diaria.dataFinal
-                        ) === "ATIVA"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {statusDiaria(
-                        diaria.dataFinal
-                      )}
-                    </td>
-
-                    <td className="p-3">
-                      <a
-                        href={`https://wa.me/55${
-                          diaria.telefone
-                        }?text=${encodeURIComponent(
-                          `Olá ${diaria.nome}, tudo bem?
-
-Sua diária está registrada 💪
-
-📅 Início: ${formatarData(
-                            diaria.dataInicio
-                          )}
-
-📅 Final: ${formatarData(
-                            diaria.dataFinal
-                          )}
-
-Bom treino!`
-                        )}`}
-                        target="_blank"
-                        className="text-green-600 font-bold"
-                      >
-                        WhatsApp
-                      </a>
-                    </td>
-
-                    <td className="p-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() =>
-                            editarDiaria(diaria)
-                          }
-                          className="bg-yellow-500 text-white px-3 py-1 rounded-lg"
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            excluirDiaria(
-                              diaria.id
-                            )
-                          }
-                          className="bg-red-600 text-white px-3 py-1 rounded-lg"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {diariasFiltradas.length ===
-            0 && (
-            <p className="mt-6 text-gray-500">
-              Nenhuma diária encontrada.
-            </p>
-          )}
-        </div>
+        )}
       </section>
     </main>
+  );
+}
+
+function Input({ label, value, setValue, type = "text" }: any) {
+  return (
+    <div>
+      <label className="block mb-2">{label}</label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      />
+    </div>
   );
 }

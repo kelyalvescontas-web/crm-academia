@@ -2,113 +2,88 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function GET() {
-  try {
-    const aulas = await prisma.aula.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+function getUnidadeId(req: Request, body?: any) {
+  const { searchParams } = new URL(req.url);
+  const id = body?.unidadeId || searchParams.get("unidadeId");
+  return id ? Number(id) : null;
+}
 
-    return Response.json(aulas);
-  } catch (error) {
-    console.log(error);
+export async function GET(req: Request) {
+  const unidadeId = getUnidadeId(req);
 
-    return Response.json(
-      { error: "Erro ao buscar aulas" },
-      { status: 500 }
-    );
-  }
+  const aulas = await prisma.aula.findMany({
+    where: { unidadeId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return Response.json(aulas);
 }
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+  const body = await req.json();
+  const unidadeId = getUnidadeId(req, body);
 
-    const aula = await prisma.aula.create({
-      data: {
-        nomeAluno: body.nomeAluno || "",
-        telefone: body.telefone || "",
-        data: body.data || "",
-        horario: body.horario || "",
-        modalidade: body.modalidade || "MUSCULAÇÃO",
-        colaboradora: body.colaboradora || "",
-        observacoes: body.observacoes || "",
-        status: body.status || "AGENDADA",
-        veio: Boolean(body.veio),
-        faltou: Boolean(body.faltou),
-        remarcou: Boolean(body.remarcou),
-        posAulaRealizado: Boolean(body.posAulaRealizado),
-        vendaEfetivada: Boolean(body.vendaEfetivada),
-        codigoMatricula: body.codigoMatricula || "",
-      },
-    });
-
-    return Response.json(aula);
-  } catch (error) {
-    console.log(error);
-
-    return Response.json(
-      { error: "Erro ao salvar aula" },
-      { status: 500 }
-    );
+  if (!unidadeId) {
+    return Response.json({ error: "Unidade não informada" }, { status: 400 });
   }
+
+  const aula = await prisma.aula.create({
+    data: {
+      nomeAluno: body.nomeAluno,
+      telefone: body.telefone,
+      data: body.data,
+      horario: body.horario,
+      modalidade: body.modalidade,
+      colaboradora: body.colaboradora,
+      observacoes: body.observacoes || "",
+      status: body.status || "AGENDADA",
+      veio: Boolean(body.veio),
+      faltou: Boolean(body.faltou),
+      remarcou: Boolean(body.remarcou),
+      posAulaRealizado: Boolean(body.posAulaRealizado),
+      vendaEfetivada: Boolean(body.vendaEfetivada),
+      codigoMatricula: body.codigoMatricula || "",
+      unidadeId,
+    },
+  });
+
+  return Response.json(aula);
 }
 
 export async function PUT(req: Request) {
-  try {
-    const body = await req.json();
+  const body = await req.json();
+  const unidadeId = getUnidadeId(req, body);
 
-    const aula = await prisma.aula.update({
-      where: {
-        id: Number(body.id),
-      },
-      data: {
-        nomeAluno: body.nomeAluno || "",
-        telefone: body.telefone || "",
-        data: body.data || "",
-        horario: body.horario || "",
-        modalidade: body.modalidade || "MUSCULAÇÃO",
-        colaboradora: body.colaboradora || "",
-        observacoes: body.observacoes || "",
-        status: body.status || "AGENDADA",
-        veio: Boolean(body.veio),
-        faltou: Boolean(body.faltou),
-        remarcou: Boolean(body.remarcou),
-        posAulaRealizado: Boolean(body.posAulaRealizado),
-        vendaEfetivada: Boolean(body.vendaEfetivada),
-        codigoMatricula: body.codigoMatricula || "",
-      },
-    });
+  const aula = await prisma.aula.update({
+    where: { id: Number(body.id) },
+    data: {
+      nomeAluno: body.nomeAluno,
+      telefone: body.telefone,
+      data: body.data,
+      horario: body.horario,
+      modalidade: body.modalidade,
+      colaboradora: body.colaboradora,
+      observacoes: body.observacoes || "",
+      status: body.status || "AGENDADA",
+      veio: Boolean(body.veio),
+      faltou: Boolean(body.faltou),
+      remarcou: Boolean(body.remarcou),
+      posAulaRealizado: Boolean(body.posAulaRealizado),
+      vendaEfetivada: Boolean(body.vendaEfetivada),
+      codigoMatricula: body.codigoMatricula || "",
+      unidadeId,
+    },
+  });
 
-    return Response.json(aula);
-  } catch (error) {
-    console.log(error);
-
-    return Response.json(
-      { error: "Erro ao editar aula" },
-      { status: 500 }
-    );
-  }
+  return Response.json(aula);
 }
 
 export async function DELETE(req: Request) {
-  try {
-    const body = await req.json();
+  const body = await req.json();
 
-    await prisma.aula.delete({
-      where: {
-        id: Number(body.id),
-      },
-    });
+  await prisma.aula.delete({
+    where: { id: Number(body.id) },
+  });
 
-    return Response.json({ ok: true });
-  } catch (error) {
-    console.log(error);
-
-    return Response.json(
-      { error: "Erro ao excluir aula" },
-      { status: 500 }
-    );
-  }
+  return Response.json({ ok: true });
 }

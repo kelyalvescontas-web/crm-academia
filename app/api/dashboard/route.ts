@@ -7,87 +7,120 @@ function hojeISO() {
   return hoje.toISOString().split("T")[0];
 }
 
-export async function GET() {
+function mesAtual(data: string) {
+  const hoje = new Date();
+
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const ano = hoje.getFullYear();
+
+  return data.startsWith(`${ano}-${mes}`);
+}
+
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+
+    const unidadeIdParam = searchParams.get("unidadeId");
+    const unidadeId = unidadeIdParam ? Number(unidadeIdParam) : null;
+
     const hoje = hojeISO();
 
-    const aulas = await prisma.aula.findMany();
+    const aulas = await prisma.aula.findMany({
+      where: unidadeId
+        ? {
+            unidadeId,
+          }
+        : {},
+    });
 
-    const diarias = await prisma.diaria.findMany();
+    const diarias = await prisma.diaria.findMany({
+      where: unidadeId
+        ? {
+            unidadeId,
+          }
+        : {},
+    });
 
-    const aulasHoje = aulas.filter(
+    const aulasMesAtual = aulas.filter((aula) =>
+      mesAtual(aula.data)
+    );
+
+    const diariasMesAtual = diarias.filter((diaria) =>
+      mesAtual(diaria.dataInicio)
+    );
+
+    const aulasHoje = aulasMesAtual.filter(
       (aula) => aula.data === hoje
     );
 
-    const diariasEncerrandoHoje = diarias.filter(
-      (diaria) => diaria.dataFinal === hoje
-    );
-
-    const diariasAtivas = diarias.filter(
-      (diaria) => diaria.dataFinal >= hoje
-    );
-
-    // NOVO SISTEMA PELOS SWITCHS
-
-    const totalCompareceu = aulas.filter(
+    const totalCompareceu = aulasMesAtual.filter(
       (aula) => aula.veio === true
     ).length;
 
-    const totalFaltou = aulas.filter(
+    const totalFaltou = aulasMesAtual.filter(
       (aula) => aula.faltou === true
     ).length;
 
-    const totalConfirmada = aulas.filter(
-      (aula) => aula.status === "AGENDADA"
-    ).length;
-
-    const totalVendas = aulas.filter(
+    const vendasEfetivadas = aulasMesAtual.filter(
       (aula) => aula.vendaEfetivada === true
     ).length;
 
-    const totalRemarcou = aulas.filter(
-      (aula) => aula.remarcou === true
-    ).length;
-
     const taxaComparecimento =
-      aulas.length > 0
-        ? Math.round((totalCompareceu / aulas.length) * 100)
+      aulasMesAtual.length > 0
+        ? Math.round((totalCompareceu / aulasMesAtual.length) * 100)
         : 0;
 
-    const modalidades: Record<string, number> = {};
+    const totalDiarias = diariasMesAtual.length;
 
-    aulas.forEach((aula) => {
-      modalidades[aula.modalidade] =
-        (modalidades[aula.modalidade] || 0) + 1;
+    const diariasAtivas = diariasMesAtual.filter(
+      (diaria) => diaria.dataFinal >= hoje
+    ).length;
+
+    const diariasVencendoHoje = diariasMesAtual.filter(
+      (diaria) => diaria.dataFinal === hoje
+    );
+
+    const modalidades: any = {};
+
+    aulasMesAtual.forEach((aula) => {
+      const modalidade = aula.modalidade || "OUTROS";
+
+      if (!modalidades[modalidade]) {
+        modalidades[modalidade] = 0;
+      }
+
+      modalidades[modalidade]++;
     });
-
-    const modalidadeMaisProcurada =
-      Object.entries(modalidades).sort(
-        (a, b) => b[1] - a[1]
-      )[0]?.[0] || "Nenhuma";
 
     return Response.json({
-      totalAulas: aulas.length,
       aulasHoje: aulasHoje.length,
-      totalDiariasAtivas: diariasAtivas.length,
-      diariasEncerrandoHoje,
-
+      totalAulas: aulasMesAtual.length,
       totalCompareceu,
       totalFaltou,
-      totalConfirmada,
-      totalVendas,
-      totalRemarcou,
-
+      vendasEfetivadas,
       taxaComparecimento,
-      modalidadeMaisProcurada,
+      totalDiarias,
+      diariasAtivas,
+      diariasVencendoHoje,
+      modalidades,
     });
-
   } catch (error) {
     console.log(error);
 
     return Response.json(
-      { error: "Erro ao carregar dashboard" },
-      { status: 500 }
+      {
+        aulasHoje: 0,
+        totalAulas: 0,
+        totalCompareceu: 0,
+        totalFaltou: 0,
+        vendasEfetivadas: 0,
+        taxaComparecimento: 0,
+        totalDiarias: 0,
+        diariasAtivas: 0,
+        diariasVencendoHoje: [],
+        modalidades: {},
+      },
+      { status: 200 }
     );
   }
 }

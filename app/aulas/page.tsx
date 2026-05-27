@@ -35,11 +35,26 @@ export default function AulasPage() {
       return;
     }
 
+    const unidadeId = localStorage.getItem("unidadeSelecionadaId");
+
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      router.push("/");
+      return;
+    }
+
     carregarAulas();
   }, [router]);
 
   async function carregarAulas() {
-    const response = await fetch("/api/aulas", {
+    const unidadeId = localStorage.getItem("unidadeSelecionadaId");
+
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      return;
+    }
+
+    const response = await fetch(`/api/aulas?unidadeId=${unidadeId}`, {
       cache: "no-store",
     });
 
@@ -74,8 +89,16 @@ export default function AulasPage() {
   }
 
   async function salvarAula() {
+    const unidadeId = localStorage.getItem("unidadeSelecionadaId");
+
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      return;
+    }
+
     const dados = {
       id: editandoId,
+      unidadeId: Number(unidadeId),
       nomeAluno: nomeAluno.trim().toUpperCase(),
       telefone: telefone.trim(),
       data,
@@ -332,35 +355,19 @@ Vamos agendar ainda essa semana?`;
             </h2>
 
             <div className="flex gap-3 mb-6 flex-wrap">
-              <button
-                type="button"
-                onClick={() => abrirWhatsApp("confirmacao")}
-                className="border-4 border-blue-600 text-blue-600 px-4 py-2 rounded-xl font-bold"
-              >
+              <button type="button" onClick={() => abrirWhatsApp("confirmacao")} className="border-4 border-blue-600 text-blue-600 px-4 py-2 rounded-xl font-bold">
                 CONFIRMAÇÃO
               </button>
 
-              <button
-                type="button"
-                onClick={() => abrirWhatsApp("lembrete")}
-                className="border-4 border-yellow-500 text-yellow-500 px-4 py-2 rounded-xl font-bold"
-              >
+              <button type="button" onClick={() => abrirWhatsApp("lembrete")} className="border-4 border-yellow-500 text-yellow-500 px-4 py-2 rounded-xl font-bold">
                 LEMBRETE
               </button>
 
-              <button
-                type="button"
-                onClick={() => abrirWhatsApp("pos")}
-                className="border-4 border-green-600 text-green-600 px-4 py-2 rounded-xl font-bold"
-              >
+              <button type="button" onClick={() => abrirWhatsApp("pos")} className="border-4 border-green-600 text-green-600 px-4 py-2 rounded-xl font-bold">
                 PÓS AULA
               </button>
 
-              <button
-                type="button"
-                onClick={() => abrirWhatsApp("nao")}
-                className="border-4 border-red-600 text-red-600 px-4 py-2 rounded-xl font-bold"
-              >
+              <button type="button" onClick={() => abrirWhatsApp("nao")} className="border-4 border-red-600 text-red-600 px-4 py-2 rounded-xl font-bold">
                 NÃO COMPARECEU
               </button>
             </div>

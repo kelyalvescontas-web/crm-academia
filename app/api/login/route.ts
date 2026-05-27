@@ -8,28 +8,18 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const usuario = await prisma.usuario.findUnique({
-      where: {
-        email: body.email,
-      },
+      where: { email: body.email },
+      include: { unidade: true },
     });
 
     if (!usuario) {
-      return Response.json(
-        { error: "Usuário não encontrado" },
-        { status: 401 }
-      );
+      return Response.json({ error: "Usuário não encontrado" }, { status: 401 });
     }
 
-    const senhaCorreta = await bcrypt.compare(
-      body.senha,
-      usuario.senha
-    );
+    const senhaCorreta = await bcrypt.compare(body.senha, usuario.senha);
 
     if (!senhaCorreta) {
-      return Response.json(
-        { error: "Senha incorreta" },
-        { status: 401 }
-      );
+      return Response.json({ error: "Senha incorreta" }, { status: 401 });
     }
 
     return Response.json({
@@ -37,13 +27,11 @@ export async function POST(req: Request) {
       nome: usuario.nome,
       email: usuario.email,
       cargo: usuario.cargo,
+      unidadeId: usuario.unidadeId,
+      unidade: usuario.unidade,
     });
   } catch (error) {
     console.log(error);
-
-    return Response.json(
-      { error: "Erro ao fazer login" },
-      { status: 500 }
-    );
+    return Response.json({ error: "Erro ao fazer login" }, { status: 500 });
   }
 }

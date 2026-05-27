@@ -3,8 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
-
 import Sidebar from "../../components/Sidebar";
+
+function pegarUnidadeAtual() {
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+
+  if (usuario.cargo === "ADMIN_GERAL") {
+    return localStorage.getItem("unidadeSelecionadaId");
+  }
+
+  return String(usuario.unidadeId || "");
+}
 
 export default function RelatoriosPage() {
   const router = useRouter();
@@ -18,25 +27,17 @@ export default function RelatoriosPage() {
     totalDiarias: 0,
     totalCompareceu: 0,
     totalFaltou: 0,
-    totalConfirmada: 0,
-    taxaComparecimento: 0,
+    vendasEfetivadas: 0,
     modalidades: {},
     aulas: [],
     diarias: [],
   });
 
   useEffect(() => {
-    const usuarioSalvo = localStorage.getItem("usuario");
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
 
-    if (!usuarioSalvo) {
+    if (!usuario.id) {
       router.push("/login");
-      return;
-    }
-
-    const usuario = JSON.parse(usuarioSalvo);
-
-    if (usuario.cargo !== "ADMIN") {
-      router.push("/");
       return;
     }
 
@@ -44,13 +45,26 @@ export default function RelatoriosPage() {
   }, []);
 
   async function carregarRelatorios() {
+    const unidadeId = pegarUnidadeAtual();
+
+    if (!unidadeId) {
+      alert("Selecione uma unidade no Dashboard");
+      router.push("/");
+      return;
+    }
+
     const params = new URLSearchParams();
+
+    params.append("unidadeId", unidadeId);
 
     if (dataInicial) params.append("dataInicial", dataInicial);
     if (dataFinal) params.append("dataFinal", dataFinal);
     if (modalidade) params.append("modalidade", modalidade);
 
-    const response = await fetch(`/api/relatorios?${params.toString()}`);
+    const response = await fetch(`/api/relatorios?${params.toString()}`, {
+      cache: "no-store",
+    });
+
     const data = await response.json();
 
     setDados(data);
@@ -66,46 +80,61 @@ export default function RelatoriosPage() {
     }, 100);
   }
 
+  function formatarData(data: string) {
+    if (!data) return "";
+    if (data.includes("/")) return data;
+
+    const partes = data.split("-");
+    if (partes.length !== 3) return data;
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+
   function exportarExcel() {
-    const aulasExcel = dados.aulas.map((aula: any) => ({
+    const relatorioAulas = dados.aulas.map((aula: any) => ({
+      Dia: formatarData(aula.data),
       Aluno: aula.nomeAluno,
-      Telefone: aula.telefone,
       Modalidade: aula.modalidade,
       Colaboradora: aula.colaboradora,
-      Data: aula.data,
-      Horario: aula.horario,
       Status: aula.status,
     }));
 
-    const diariasExcel = dados.diarias.map((diaria: any) => ({
-      Nome: diaria.nome,
-      Telefone: diaria.telefone,
-      CPF: diaria.cpf,
-      Colaboradora: diaria.colaboradora,
-      Inicio: diaria.dataInicio,
-      Final: diaria.dataFinal,
-      Dias: diaria.quantidadeDias,
-    }));
+    const relatorioResumo = [
+      {
+        "Total Aulas Experimentais": dados.totalAulas,
+        "Compareceu Aulas": dados.totalCompareceu,
+        "Faltou nas Aulas": dados.totalFaltou,
+        "Vendas Efetivadas": dados.vendasEfetivadas,
+        "Total de Diárias": dados.totalDiarias,
+      },
+    ];
+
+    const relatorioModalidades = Object.entries(dados.modalidades || {}).map(
+      ([modalidade, quantidade]: any) => ({
+        Modalidade: modalidade,
+        Quantidade: quantidade,
+      })
+    );
 
     const workbook = XLSX.utils.book_new();
 
-    const resumoSheet = XLSX.utils.json_to_sheet([
-      {
-        "Total de Aulas": dados.totalAulas,
-        "Total de Diárias": dados.totalDiarias,
-        Compareceu: dados.totalCompareceu,
-        Faltou: dados.totalFaltou,
-        Confirmadas: dados.totalConfirmada,
-        "Taxa Comparecimento": `${dados.taxaComparecimento}%`,
-      },
-    ]);
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioAulas),
+      "Aulas"
+    );
 
-    const aulasSheet = XLSX.utils.json_to_sheet(aulasExcel);
-    const diariasSheet = XLSX.utils.json_to_sheet(diariasExcel);
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioResumo),
+      "Resumo"
+    );
 
-    XLSX.utils.book_append_sheet(workbook, resumoSheet, "Resumo");
-    XLSX.utils.book_append_sheet(workbook, aulasSheet, "Aulas");
-    XLSX.utils.book_append_sheet(workbook, diariasSheet, "Diarias");
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioModalidades),
+      "Modalidades"
+    );
 
     XLSX.writeFile(workbook, "relatorio_crm_academia.xlsx");
   }
@@ -116,9 +145,7 @@ export default function RelatoriosPage() {
 
       <section className="flex-1 p-10">
         <div className="flex justify-between items-center mb-10">
-          <h1 className="text-5xl font-bold">
-            Relatórios
-          </h1>
+          <h1 className="text-5xl font-bold">Relatórios</h1>
 
           <button
             onClick={exportarExcel}
@@ -129,14 +156,11 @@ export default function RelatoriosPage() {
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow mb-10">
-          <h2 className="text-2xl font-bold mb-6">
-            Filtros
-          </h2>
+          <h2 className="text-2xl font-bold mb-6">Filtros</h2>
 
           <div className="grid grid-cols-4 gap-6">
             <div>
               <label>Data Inicial</label>
-
               <input
                 type="date"
                 value={dataInicial}
@@ -147,7 +171,6 @@ export default function RelatoriosPage() {
 
             <div>
               <label>Data Final</label>
-
               <input
                 type="date"
                 value={dataFinal}
@@ -158,7 +181,6 @@ export default function RelatoriosPage() {
 
             <div>
               <label>Modalidade</label>
-
               <select
                 value={modalidade}
                 onChange={(e) => setModalidade(e.target.value)}
@@ -194,82 +216,32 @@ export default function RelatoriosPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Total de Aulas</h2>
-
-            <p className="text-4xl font-bold text-blue-900 mt-3">
-              {dados.totalAulas}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Compareceu</h2>
-
-            <p className="text-4xl font-bold text-green-600 mt-3">
-              {dados.totalCompareceu}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Faltou</h2>
-
-            <p className="text-4xl font-bold text-red-600 mt-3">
-              {dados.totalFaltou}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Confirmadas</h2>
-
-            <p className="text-4xl font-bold text-blue-600 mt-3">
-              {dados.totalConfirmada}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Taxa Comparecimento</h2>
-
-            <p className="text-4xl font-bold text-blue-900 mt-3">
-              {dados.taxaComparecimento}%
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow">
-            <h2 className="text-xl font-bold">Total de Diárias</h2>
-
-            <p className="text-4xl font-bold text-blue-900 mt-3">
-              {dados.totalDiarias}
-            </p>
-          </div>
+        <div className="grid grid-cols-5 gap-5 mb-10">
+          <Card titulo="Total Aulas" valor={dados.totalAulas} cor="text-blue-700" />
+          <Card titulo="Compareceu" valor={dados.totalCompareceu} cor="text-green-600" />
+          <Card titulo="Faltou" valor={dados.totalFaltou} cor="text-red-600" />
+          <Card titulo="Vendas Efetivadas" valor={dados.vendasEfetivadas} cor="text-yellow-600" />
+          <Card titulo="Total Diárias" valor={dados.totalDiarias} cor="text-purple-700" />
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow mb-10">
-          <h2 className="text-2xl font-bold mb-6">
-            Aulas por Modalidade
-          </h2>
+          <h2 className="text-2xl font-bold mb-6">Aulas por Modalidade</h2>
 
-          {Object.entries(dados.modalidades).map(
-            ([modalidade, total]: any) => (
-              <div
-                key={modalidade}
-                className="flex justify-between border-b py-3"
-              >
-                <span>{modalidade}</span>
-                <strong>{total}</strong>
-              </div>
-            )
-          )}
+          {Object.entries(dados.modalidades || {}).map(([modalidade, total]: any) => (
+            <div key={modalidade} className="flex justify-between border-b py-3">
+              <span>{modalidade}</span>
+              <strong>{total}</strong>
+            </div>
+          ))}
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-2xl font-bold mb-6">
-            Aulas Experimentais
-          </h2>
+          <h2 className="text-2xl font-bold mb-6">Relatório de Aulas</h2>
 
           <table className="w-full">
             <thead>
               <tr className="border-b">
+                <th className="p-3 text-left">Dia</th>
                 <th className="p-3 text-left">Aluno</th>
                 <th className="p-3 text-left">Modalidade</th>
                 <th className="p-3 text-left">Colaboradora</th>
@@ -278,8 +250,9 @@ export default function RelatoriosPage() {
             </thead>
 
             <tbody>
-              {dados.aulas.slice(0, 20).map((aula: any) => (
+              {dados.aulas.map((aula: any) => (
                 <tr key={aula.id} className="border-b">
+                  <td className="p-3">{formatarData(aula.data)}</td>
                   <td className="p-3">{aula.nomeAluno}</td>
                   <td className="p-3">{aula.modalidade}</td>
                   <td className="p-3">{aula.colaboradora}</td>
@@ -291,5 +264,14 @@ export default function RelatoriosPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function Card({ titulo, valor, cor }: any) {
+  return (
+    <div className="bg-white p-5 rounded-2xl shadow">
+      <h2 className="text-lg font-bold">{titulo}</h2>
+      <p className={`text-4xl font-bold mt-3 ${cor}`}>{valor}</p>
+    </div>
   );
 }

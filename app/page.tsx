@@ -127,7 +127,7 @@ export default function Home() {
         >
           <h1
             style={{
-              fontSize: "42px",
+              fontSize: "34px",
               fontWeight: "bold",
             }}
           >
@@ -179,7 +179,7 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
             gap: "15px",
             marginBottom: "20px",
           }}
@@ -312,9 +312,9 @@ function Card({ titulo, valor, cor }: any) {
       style={{
         background: "white",
         borderRadius: "18px",
-        padding: "20px",
+        padding: "16px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-        minHeight: "120px",
+        minHeight: "95px",
       }}
     >
       <h2
@@ -329,7 +329,7 @@ function Card({ titulo, valor, cor }: any) {
 
       <p
         style={{
-          fontSize: "42px",
+          fontSize: "32px",
           fontWeight: "bold",
           color: cor,
         }}

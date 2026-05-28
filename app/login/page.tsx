@@ -47,7 +47,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-10 rounded-2xl shadow w-[450px]">
+      <div className="bg-white p-6 rounded-2xl shadow w-[450px]">
         <h1 className="text-4xl font-bold text-center mb-8">
           Login CRM Academia
         </h1>

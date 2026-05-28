@@ -143,9 +143,9 @@ export default function DiariasPage() {
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-10">
+      <section className="flex-1 p-6">
         <div className="flex justify-between items-center mb-10">
-          <h1 className="text-5xl font-bold">Diárias</h1>
+          <h1 className="text-3xl font-bold">Diárias</h1>
 
           <button
             onClick={() => {
@@ -158,7 +158,7 @@ export default function DiariasPage() {
           </button>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow mb-8">
+        <div className="bg-white p-5 rounded-2xl shadow mb-8">
           <table className="w-full">
             <thead>
               <tr className="border-b">

@@ -77,7 +77,7 @@ export default function CadastroPage() {
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
 
-      <div className="bg-white p-10 rounded-2xl shadow w-[500px]">
+      <div className="bg-white p-6 rounded-2xl shadow w-[500px]">
 
         <h1 className="text-4xl font-bold mb-8 text-center">
           Cadastro Usuário

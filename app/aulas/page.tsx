@@ -272,7 +272,7 @@ Vamos agendar ainda essa semana?`;
 
       <section className="flex-1 p-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-5xl font-bold text-gray-800">
+          <h1 className="text-3xl font-bold text-gray-800">
             Aulas Agendadas
           </h1>
 
@@ -281,7 +281,7 @@ Vamos agendar ainda essa semana?`;
               limparFormulario();
               setMostrarFormulario(true);
             }}
-            className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+            className="bg-blue-900 text-white px-5 py-3 rounded-xl font-bold"
           >
             AGENDAR
           </button>
@@ -328,7 +328,7 @@ Vamos agendar ainda essa semana?`;
                       <div className="flex gap-2">
                         <button
                           onClick={() => editarAula(aula)}
-                          className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
+                          className="bg-yellow-500 text-white px-3 py-2 rounded-lg"
                         >
                           Editar
                         </button>

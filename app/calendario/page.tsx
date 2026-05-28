@@ -74,10 +74,10 @@ export default function CalendarioPage() {
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-10">
-        <h1 className="text-5xl font-bold mb-10">Calendário</h1>
+      <section className="flex-1 p-6">
+        <h1 className="text-3xl font-bold mb-10">Calendário</h1>
 
-        <div className="bg-white p-8 rounded-2xl shadow mb-10">
+        <div className="bg-white p-5 rounded-2xl shadow mb-10">
           <label className="block mb-3 text-xl font-bold">Selecionar Data</label>
 
           <input

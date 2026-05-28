@@ -252,13 +252,13 @@ export default function UsuariosPage() {
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-10">
-        <h1 className="text-5xl font-bold mb-8">
+      <section className="flex-1 p-6">
+        <h1 className="text-3xl font-bold mb-8">
           Usuários
         </h1>
 
         {adminGeral ? (
-          <div className="bg-white p-8 rounded-2xl shadow mb-8">
+          <div className="bg-white p-5 rounded-2xl shadow mb-8">
             <h2 className="text-3xl font-bold mb-6">
               {editandoId
                 ? "Editar Usuário"

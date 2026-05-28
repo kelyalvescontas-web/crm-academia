@@ -103,7 +103,7 @@ export default function Sidebar() {
     <div
       className="min-h-screen text-white flex flex-col p-6"
       style={{
-        width: "230px",
+        width: "210px",
         background: corSistema,
       }}
     >
@@ -122,7 +122,7 @@ export default function Sidebar() {
             src={logo}
             alt="Logo"
             style={{
-              width: "150px",
+              width: "130px",
               height: "auto",
               objectFit: "contain",
               display: "block",

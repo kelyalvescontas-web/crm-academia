@@ -143,9 +143,9 @@ export default function RelatoriosPage() {
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-10">
+      <section className="flex-1 p-6">
         <div className="flex justify-between items-center mb-10">
-          <h1 className="text-5xl font-bold">Relatórios</h1>
+          <h1 className="text-3xl font-bold">Relatórios</h1>
 
           <button
             onClick={exportarExcel}

@@ -14,22 +14,15 @@ export default function Sidebar() {
   useEffect(() => {
     carregarConfiguracoes();
 
-    window.addEventListener(
-      "unidadeAlterada",
-      carregarConfiguracoes
-    );
+    window.addEventListener("unidadeAlterada", carregarConfiguracoes);
 
     return () => {
-      window.removeEventListener(
-        "unidadeAlterada",
-        carregarConfiguracoes
-      );
+      window.removeEventListener("unidadeAlterada", carregarConfiguracoes);
     };
   }, []);
 
   async function carregarConfiguracoes() {
-    const usuarioSalvo =
-      localStorage.getItem("usuario");
+    const usuarioSalvo = localStorage.getItem("usuario");
 
     if (!usuarioSalvo) return;
 
@@ -37,74 +30,45 @@ export default function Sidebar() {
 
     const unidadeId =
       usuario.cargo === "ADMIN_GERAL"
-        ? localStorage.getItem(
-            "unidadeSelecionadaId"
-          )
+        ? localStorage.getItem("unidadeSelecionadaId")
         : String(usuario.unidadeId || "");
 
     if (!unidadeId) return;
 
-    const response = await fetch(
-      `/api/configuracoes?unidadeId=${unidadeId}`,
-      {
-        cache: "no-store",
-      }
-    );
+    const response = await fetch(`/api/configuracoes?unidadeId=${unidadeId}`, {
+      cache: "no-store",
+    });
 
     const data = await response.json();
 
     setLogo(data.logo || "");
-    setCorSistema(
-      data.corSistema || "#1e3a8a"
-    );
+    setCorSistema(data.corSistema || "#1e3a8a");
   }
 
   function sair() {
     localStorage.removeItem("usuario");
-    localStorage.removeItem(
-      "unidadeSelecionadaId"
-    );
+    localStorage.removeItem("unidadeSelecionadaId");
 
     router.push("/login");
   }
 
   const menu = [
-    {
-      nome: "Dashboard",
-      rota: "/",
-    },
-    {
-      nome: "Aulas Agendadas",
-      rota: "/aulas",
-    },
-    {
-      nome: "Diárias",
-      rota: "/diarias",
-    },
-    {
-      nome: "Calendário",
-      rota: "/calendario",
-    },
-    {
-      nome: "Usuários",
-      rota: "/usuarios",
-    },
-    {
-      nome: "Relatórios",
-      rota: "/relatorios",
-    },
-    {
-      nome: "Configurações",
-      rota: "/configuracoes",
-    },
+    { nome: "Dashboard", rota: "/" },
+    { nome: "Aulas Agendadas", rota: "/aulas" },
+    { nome: "Diárias", rota: "/diarias" },
+    { nome: "Calendário", rota: "/calendario" },
+    { nome: "Usuários", rota: "/usuarios" },
+    { nome: "Relatórios", rota: "/relatorios" },
+    { nome: "Configurações", rota: "/configuracoes" },
   ];
 
   return (
     <div
-      className="min-h-screen text-white flex flex-col p-6"
+      className="min-h-screen text-white flex flex-col"
       style={{
-        width: "210px",
+        width: "190px",
         background: corSistema,
+        padding: "18px 12px",
       }}
     >
       <div
@@ -113,8 +77,8 @@ export default function Sidebar() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          marginBottom: "45px",
-          marginTop: "15px",
+          marginBottom: "28px",
+          marginTop: "8px",
         }}
       >
         {logo ? (
@@ -122,34 +86,37 @@ export default function Sidebar() {
             src={logo}
             alt="Logo"
             style={{
-              width: "130px",
+              width: "115px",
               height: "auto",
               objectFit: "contain",
               display: "block",
             }}
           />
         ) : (
-          <h1 className="text-4xl font-bold text-center">
-            CRM Academia
-          </h1>
+          <h1 className="text-xl font-bold text-center">CRM Academia</h1>
         )}
       </div>
 
-      <div className="flex flex-col gap-4 flex-1">
+      <div
+        className="flex flex-col flex-1"
+        style={{
+          gap: "8px",
+        }}
+      >
         {menu.map((item) => (
           <Link
             key={item.rota}
             href={item.rota}
-            className={`text-lg px-3 py-3 rounded-xl transition-all duration-200 ${
+            className={`rounded-xl transition-all duration-200 ${
               pathname === item.rota
                 ? "bg-white font-bold"
                 : "hover:bg-blue-800"
             }`}
             style={{
-              color:
-                pathname === item.rota
-                  ? corSistema
-                  : "white",
+              color: pathname === item.rota ? corSistema : "white",
+              fontSize: "15px",
+              padding: "10px 12px",
+              lineHeight: "1.2",
             }}
           >
             {item.nome}
@@ -160,15 +127,15 @@ export default function Sidebar() {
       <button
         onClick={sair}
         style={{
-          marginTop: "25px",
+          marginTop: "18px",
           background: "#dc2626",
           color: "white",
           border: "none",
-          padding: "16px",
-          borderRadius: "14px",
+          padding: "10px",
+          borderRadius: "12px",
           fontWeight: "bold",
           cursor: "pointer",
-          fontSize: "18px",
+          fontSize: "14px",
         }}
       >
         Sair

@@ -116,7 +116,7 @@ export default function Home() {
     >
       <Sidebar />
 
-      <section style={{ flex: 1, padding: "30px" }}>
+      <section style={{ flex: 1, padding: "24px" }}>
         <div
           style={{
             display: "flex",
@@ -149,7 +149,7 @@ export default function Home() {
               <label
                 style={{
                   fontWeight: "bold",
-                  fontSize: "16px",
+                  fontSize: "15px",
                 }}
               >
                 Unidade:

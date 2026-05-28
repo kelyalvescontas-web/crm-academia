@@ -103,7 +103,7 @@ export default function Sidebar() {
     <div
       className="min-h-screen text-white flex flex-col p-6"
       style={{
-        width: "260px",
+        width: "230px",
         background: corSistema,
       }}
     >
@@ -122,7 +122,7 @@ export default function Sidebar() {
             src={logo}
             alt="Logo"
             style={{
-              width: "190px",
+              width: "150px",
               height: "auto",
               objectFit: "contain",
               display: "block",
@@ -140,7 +140,7 @@ export default function Sidebar() {
           <Link
             key={item.rota}
             href={item.rota}
-            className={`text-2xl px-4 py-4 rounded-xl transition-all duration-200 ${
+            className={`text-lg px-3 py-3 rounded-xl transition-all duration-200 ${
               pathname === item.rota
                 ? "bg-white font-bold"
                 : "hover:bg-blue-800"

@@ -4,12 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 
+function mesAtualSistema() {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+
+  return `${ano}-${mes}`;
+}
+
 export default function Home() {
   const router = useRouter();
 
   const [usuario, setUsuario] = useState<any>(null);
   const [unidades, setUnidades] = useState<any[]>([]);
   const [unidadeSelecionada, setUnidadeSelecionada] = useState("");
+  const [mesSelecionado, setMesSelecionado] = useState(mesAtualSistema());
 
   const [dashboard, setDashboard] = useState<any>({
     totalAulas: 0,
@@ -48,7 +57,7 @@ export default function Home() {
 
       localStorage.setItem("unidadeSelecionadaId", unidadeDoUsuario);
       setUnidadeSelecionada(unidadeDoUsuario);
-      carregarDashboard(unidadeDoUsuario);
+      carregarDashboard(unidadeDoUsuario, mesAtualSistema());
     }
   }, [router]);
 
@@ -70,14 +79,17 @@ export default function Home() {
 
     localStorage.setItem("unidadeSelecionadaId", unidadeInicial);
     setUnidadeSelecionada(unidadeInicial);
-    carregarDashboard(unidadeInicial);
+    carregarDashboard(unidadeInicial, mesSelecionado);
   }
 
-  async function carregarDashboard(unidadeId: string) {
+  async function carregarDashboard(unidadeId: string, mes: string) {
     try {
-      const response = await fetch(`/api/dashboard?unidadeId=${unidadeId}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/dashboard?unidadeId=${unidadeId}&mes=${mes}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       const data = await response.json();
 
@@ -101,9 +113,18 @@ export default function Home() {
   function trocarUnidade(id: string) {
     setUnidadeSelecionada(id);
     localStorage.setItem("unidadeSelecionadaId", id);
-    carregarDashboard(id);
+
+    carregarDashboard(id, mesSelecionado);
 
     window.dispatchEvent(new Event("unidadeAlterada"));
+  }
+
+  function trocarMes(mes: string) {
+    setMesSelecionado(mes);
+
+    if (unidadeSelecionada) {
+      carregarDashboard(unidadeSelecionada, mes);
+    }
   }
 
   return (
@@ -123,6 +144,8 @@ export default function Home() {
             justifyContent: "space-between",
             alignItems: "center",
             marginBottom: "25px",
+            gap: "15px",
+            flexWrap: "wrap",
           }}
         >
           <h1
@@ -134,11 +157,58 @@ export default function Home() {
             Dashboard Comercial
           </h1>
 
-          {usuario?.cargo === "ADMIN_GERAL" && (
+          <div
+            style={{
+              display: "flex",
+              gap: "15px",
+              flexWrap: "wrap",
+            }}
+          >
+            {usuario?.cargo === "ADMIN_GERAL" && (
+              <div
+                style={{
+                  background: "white",
+                  padding: "12px 16px",
+                  borderRadius: "14px",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <label
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: "15px",
+                  }}
+                >
+                  Unidade:
+                </label>
+
+                <select
+                  value={unidadeSelecionada}
+                  onChange={(e) => trocarUnidade(e.target.value)}
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: "10px",
+                    border: "1px solid #d1d5db",
+                    minWidth: "280px",
+                    fontSize: "15px",
+                  }}
+                >
+                  {unidades.map((unidade) => (
+                    <option key={unidade.id} value={unidade.id}>
+                      {unidade.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div
               style={{
                 background: "white",
-                padding: "15px 20px",
+                padding: "12px 16px",
                 borderRadius: "14px",
                 boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
                 display: "flex",
@@ -152,28 +222,22 @@ export default function Home() {
                   fontSize: "15px",
                 }}
               >
-                Unidade:
+                Mês:
               </label>
 
-              <select
-                value={unidadeSelecionada}
-                onChange={(e) => trocarUnidade(e.target.value)}
+              <input
+                type="month"
+                value={mesSelecionado}
+                onChange={(e) => trocarMes(e.target.value)}
                 style={{
-                  padding: "10px 14px",
+                  padding: "9px 12px",
                   borderRadius: "10px",
                   border: "1px solid #d1d5db",
-                  minWidth: "300px",
                   fontSize: "15px",
                 }}
-              >
-                {unidades.map((unidade) => (
-                  <option key={unidade.id} value={unidade.id}>
-                    {unidade.nome}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
-          )}
+          </div>
         </div>
 
         <div
@@ -185,16 +249,43 @@ export default function Home() {
           }}
         >
           <Card titulo="Aulas Hoje" valor={dashboard.aulasHoje} cor="#1d4ed8" />
-          <Card titulo="Total Aulas" valor={dashboard.totalAulas} cor="#2563eb" />
-          <Card titulo="Compareceu" valor={dashboard.totalCompareceu} cor="#16a34a" />
+
+          <Card
+            titulo="Total Aulas"
+            valor={dashboard.totalAulas}
+            cor="#2563eb"
+          />
+
+          <Card
+            titulo="Compareceu"
+            valor={dashboard.totalCompareceu}
+            cor="#16a34a"
+          />
+
           <Card titulo="Faltou" valor={dashboard.totalFaltou} cor="#dc2626" />
-          <Card titulo="Total Diárias" valor={dashboard.totalDiarias} cor="#7c3aed" />
-          <Card titulo="Vendas" valor={dashboard.vendasEfetivadas} cor="#ca8a04" />
-          <Card titulo="Diárias Ativas" valor={dashboard.diariasAtivas} cor="#7c3aed" />
+
           <Card
             titulo="Taxa de Comparecimento"
             valor={`${dashboard.taxaComparecimento}%`}
             cor="#1e40af"
+          />
+
+          <Card
+            titulo="Total Diárias"
+            valor={dashboard.totalDiarias}
+            cor="#7c3aed"
+          />
+
+          <Card
+            titulo="Vendas"
+            valor={dashboard.vendasEfetivadas}
+            cor="#ca8a04"
+          />
+
+          <Card
+            titulo="Diárias Ativas"
+            valor={dashboard.diariasAtivas}
+            cor="#7c3aed"
           />
         </div>
 

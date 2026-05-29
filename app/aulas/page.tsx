@@ -10,7 +10,10 @@ export default function AulasPage() {
   const [aulas, setAulas] = useState<any[]>([]);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
+
   const [busca, setBusca] = useState("");
+  const [dataInicialFiltro, setDataInicialFiltro] = useState("");
+  const [dataFinalFiltro, setDataFinalFiltro] = useState("");
 
   const [nomeAluno, setNomeAluno] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -35,14 +38,6 @@ export default function AulasPage() {
       return;
     }
 
-    const unidadeId = localStorage.getItem("unidadeSelecionadaId");
-
-    if (!unidadeId) {
-      alert("Selecione uma unidade no Dashboard");
-      router.push("/");
-      return;
-    }
-
     carregarAulas();
   }, [router]);
 
@@ -51,6 +46,7 @@ export default function AulasPage() {
 
     if (!unidadeId) {
       alert("Selecione uma unidade no Dashboard");
+      router.push("/");
       return;
     }
 
@@ -86,6 +82,17 @@ export default function AulasPage() {
     if (faltou) return "FALTOU";
     if (remarcou) return "REMARCOU";
     return "AGENDADA";
+  }
+
+  function corStatus(status: string) {
+    const s = (status || "AGENDADA").toUpperCase();
+
+    if (s === "VENDA EFETIVADA") return "#16a34a";
+    if (s === "COMPARECEU") return "#2563eb";
+    if (s === "FALTOU") return "#dc2626";
+    if (s === "REMARCOU") return "#dc2626";
+
+    return "#d97706";
   }
 
   async function salvarAula() {
@@ -149,6 +156,8 @@ export default function AulasPage() {
     setVendaEfetivada(Boolean(aula.vendaEfetivada));
     setCodigoMatricula(aula.codigoMatricula || "");
     setMostrarFormulario(true);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function excluirAula(id: number) {
@@ -258,20 +267,27 @@ Vamos agendar ainda essa semana?`;
   const aulasFiltradas = aulas.filter((aula) => {
     const termo = busca.toUpperCase();
 
-    return (
+    const bateBusca =
       aula.nomeAluno?.toUpperCase().includes(termo) ||
       aula.telefone?.includes(busca) ||
       aula.modalidade?.toUpperCase().includes(termo) ||
-      aula.status?.toUpperCase().includes(termo)
-    );
+      aula.status?.toUpperCase().includes(termo);
+
+    const bateDataInicial =
+      !dataInicialFiltro || aula.data >= dataInicialFiltro;
+
+    const bateDataFinal =
+      !dataFinalFiltro || aula.data <= dataFinalFiltro;
+
+    return bateBusca && bateDataInicial && bateDataFinal;
   });
 
   return (
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
-      <section className="flex-1 p-8">
-        <div className="flex justify-between items-center mb-8">
+      <section className="flex-1 p-6">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">
             Aulas Agendadas
           </h1>
@@ -280,6 +296,7 @@ Vamos agendar ainda essa semana?`;
             onClick={() => {
               limparFormulario();
               setMostrarFormulario(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="bg-blue-900 text-white px-5 py-3 rounded-xl font-bold"
           >
@@ -287,70 +304,9 @@ Vamos agendar ainda essa semana?`;
           </button>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold">Aulas Agendadas</h2>
-
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar aula..."
-              className="border rounded-xl p-3 w-96"
-            />
-          </div>
-
-          <div className="overflow-auto">
-            <table className="w-full min-w-[900px]">
-              <thead>
-                <tr className="border-b">
-                  <th className="p-3 text-left">Aluno</th>
-                  <th className="p-3 text-left">Telefone</th>
-                  <th className="p-3 text-left">Data</th>
-                  <th className="p-3 text-left">Horário</th>
-                  <th className="p-3 text-left">Modalidade</th>
-                  <th className="p-3 text-left">Status</th>
-                  <th className="p-3 text-left">Ações</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {aulasFiltradas.map((aula) => (
-                  <tr key={aula.id} className="border-b">
-                    <td className="p-3">{aula.nomeAluno}</td>
-                    <td className="p-3">{aula.telefone}</td>
-                    <td className="p-3">{formatarData(aula.data)}</td>
-                    <td className="p-3">{aula.horario}</td>
-                    <td className="p-3">{aula.modalidade}</td>
-                    <td className="p-3 font-bold text-yellow-600">
-                      {aula.status || "AGENDADA"}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => editarAula(aula)}
-                          className="bg-yellow-500 text-white px-3 py-2 rounded-lg"
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          onClick={() => excluirAula(aula.id)}
-                          className="bg-red-600 text-white px-4 py-2 rounded-lg"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {mostrarFormulario && (
-          <div className="bg-white p-8 rounded-2xl shadow">
-            <h2 className="text-4xl font-bold mb-6">
+          <div className="bg-white p-5 rounded-2xl shadow mb-6">
+            <h2 className="text-2xl font-bold mb-5">
               {editandoId ? "Editar Aula" : "Cadastrar Aula"}
             </h2>
 
@@ -372,7 +328,7 @@ Vamos agendar ainda essa semana?`;
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Input label="Nome do aluno" value={nomeAluno} setValue={setNomeAluno} />
               <Input label="Telefone" value={telefone} setValue={setTelefone} />
               <Input label="Data da aula" value={data} setValue={setData} type="date" />
@@ -399,7 +355,7 @@ Vamos agendar ainda essa semana?`;
               <Input label="Colaboradora" value={colaboradora} setValue={setColaboradora} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-5">
               <Check label="Veio" checked={veio} setChecked={setVeio} />
               <Check label="Faltou" checked={faltou} setChecked={setFaltou} />
               <Check label="Remarcou" checked={remarcou} setChecked={setRemarcou} />
@@ -407,7 +363,7 @@ Vamos agendar ainda essa semana?`;
               <Check label="Venda efetivada" checked={vendaEfetivada} setChecked={setVendaEfetivada} />
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <label className="block mb-2 font-semibold">
                 Código da Matrícula
               </label>
@@ -421,20 +377,20 @@ Vamos agendar ainda essa semana?`;
               />
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <label className="block mb-2">Observações</label>
 
               <textarea
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                className="w-full border rounded-xl p-3 h-32"
+                className="w-full border rounded-xl p-3 h-28"
               />
             </div>
 
-            <div className="flex gap-4 mt-6">
+            <div className="flex gap-4 mt-5">
               <button
                 onClick={salvarAula}
-                className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+                className="bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
               >
                 {editandoId ? "Salvar Edição" : "Salvar Aula"}
               </button>
@@ -444,13 +400,120 @@ Vamos agendar ainda essa semana?`;
                   limparFormulario();
                   setMostrarFormulario(false);
                 }}
-                className="bg-gray-500 text-white px-8 py-4 rounded-xl font-bold"
+                className="bg-gray-500 text-white px-6 py-3 rounded-xl font-bold"
               >
                 Cancelar
               </button>
             </div>
           </div>
         )}
+
+        <div className="bg-white p-5 rounded-2xl shadow mb-8">
+          <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-3">Aulas Agendadas</h2>
+
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por aluno, telefone, modalidade ou status..."
+                className="border rounded-xl p-3 w-96 max-w-full"
+              />
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
+              <div>
+                <label className="block mb-1 font-semibold">Data início</label>
+                <input
+                  type="date"
+                  value={dataInicialFiltro}
+                  onChange={(e) => setDataInicialFiltro(e.target.value)}
+                  className="border rounded-xl p-3"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold">Data fim</label>
+                <input
+                  type="date"
+                  value={dataFinalFiltro}
+                  onChange={(e) => setDataFinalFiltro(e.target.value)}
+                  className="border rounded-xl p-3"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  setBusca("");
+                  setDataInicialFiltro("");
+                  setDataFinalFiltro("");
+                }}
+                className="bg-gray-500 text-white px-5 py-3 rounded-xl font-bold self-end"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="border-b">
+                  <th className="p-3 text-left">Aluno</th>
+                  <th className="p-3 text-left">Telefone</th>
+                  <th className="p-3 text-left">Data</th>
+                  <th className="p-3 text-left">Horário</th>
+                  <th className="p-3 text-left">Modalidade</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Ações</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {aulasFiltradas.map((aula) => (
+                  <tr key={aula.id} className="border-b">
+                    <td className="p-3">{aula.nomeAluno}</td>
+                    <td className="p-3">{aula.telefone}</td>
+                    <td className="p-3">{formatarData(aula.data)}</td>
+                    <td className="p-3">{aula.horario}</td>
+                    <td className="p-3">{aula.modalidade}</td>
+                    <td
+                      className="p-3 font-bold"
+                      style={{ color: corStatus(aula.status) }}
+                    >
+                      {aula.status || "AGENDADA"}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => editarAula(aula)}
+                          className="bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => excluirAula(aula.id)}
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {aulasFiltradas.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-gray-500" colSpan={7}>
+                      Nenhuma aula encontrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </main>
   );
@@ -473,7 +536,7 @@ function Input({ label, value, setValue, type = "text" }: any) {
 
 function Check({ label, checked, setChecked }: any) {
   return (
-    <label className="flex items-center gap-3 bg-gray-100 p-4 rounded-xl font-bold">
+    <label className="flex items-center gap-3 bg-gray-100 p-3 rounded-xl font-bold">
       <input
         type="checkbox"
         checked={checked}

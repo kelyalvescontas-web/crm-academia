@@ -7,13 +7,19 @@ function hojeISO() {
   return hoje.toISOString().split("T")[0];
 }
 
-function mesAtual(data: string) {
+function getMesAtual() {
   const hoje = new Date();
 
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
   const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
 
-  return data.startsWith(`${ano}-${mes}`);
+  return `${ano}-${mes}`;
+}
+
+function pertenceAoMes(data: string, mesReferencia: string) {
+  if (!data) return false;
+
+  return data.startsWith(mesReferencia);
 }
 
 export async function GET(req: Request) {
@@ -21,68 +27,62 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     const unidadeIdParam = searchParams.get("unidadeId");
+    const mesParam = searchParams.get("mes");
+
     const unidadeId = unidadeIdParam ? Number(unidadeIdParam) : null;
+    const mesReferencia = mesParam || getMesAtual();
 
     const hoje = hojeISO();
 
     const aulas = await prisma.aula.findMany({
-      where: unidadeId
-        ? {
-            unidadeId,
-          }
-        : {},
+      where: unidadeId ? { unidadeId } : {},
     });
 
     const diarias = await prisma.diaria.findMany({
-      where: unidadeId
-        ? {
-            unidadeId,
-          }
-        : {},
+      where: unidadeId ? { unidadeId } : {},
     });
 
-    const aulasMesAtual = aulas.filter((aula) =>
-      mesAtual(aula.data)
+    const aulasDoMes = aulas.filter((aula) =>
+      pertenceAoMes(aula.data, mesReferencia)
     );
 
-    const diariasMesAtual = diarias.filter((diaria) =>
-      mesAtual(diaria.dataInicio)
+    const diariasDoMes = diarias.filter((diaria) =>
+      pertenceAoMes(diaria.dataInicio, mesReferencia)
     );
 
-    const aulasHoje = aulasMesAtual.filter(
-      (aula) => aula.data === hoje
-    );
+    const aulasHoje = aulasDoMes.filter((aula) => aula.data === hoje);
 
-    const totalCompareceu = aulasMesAtual.filter(
-      (aula) => aula.veio === true
+    const totalCompareceu = aulasDoMes.filter(
+      (aula) => aula.veio === true || aula.status === "COMPARECEU"
     ).length;
 
-    const totalFaltou = aulasMesAtual.filter(
-      (aula) => aula.faltou === true
+    const totalFaltou = aulasDoMes.filter(
+      (aula) => aula.faltou === true || aula.status === "FALTOU"
     ).length;
 
-    const vendasEfetivadas = aulasMesAtual.filter(
-      (aula) => aula.vendaEfetivada === true
+    const vendasEfetivadas = aulasDoMes.filter(
+      (aula) =>
+        aula.vendaEfetivada === true || aula.status === "VENDA EFETIVADA"
     ).length;
 
     const taxaComparecimento =
-      aulasMesAtual.length > 0
-        ? Math.round((totalCompareceu / aulasMesAtual.length) * 100)
+      aulasDoMes.length > 0
+        ? Math.round((totalCompareceu / aulasDoMes.length) * 100)
         : 0;
 
-    const totalDiarias = diariasMesAtual.length;
+    const totalDiarias = diariasDoMes.length;
 
-    const diariasAtivas = diariasMesAtual.filter(
+    const diariasAtivas = diariasDoMes.filter(
       (diaria) => diaria.dataFinal >= hoje
     ).length;
 
-    const diariasVencendoHoje = diariasMesAtual.filter(
+    const diariasVencendoHoje = diariasDoMes.filter(
       (diaria) => diaria.dataFinal === hoje
     );
 
     const modalidades: any = {};
 
-    aulasMesAtual.forEach((aula) => {
+    aulasDoMes.forEach((aula) => {
       const modalidade = aula.modalidade || "OUTROS";
 
       if (!modalidades[modalidade]) {
@@ -93,8 +93,9 @@ export async function GET(req: Request) {
     });
 
     return Response.json({
+      mesReferencia,
       aulasHoje: aulasHoje.length,
-      totalAulas: aulasMesAtual.length,
+      totalAulas: aulasDoMes.length,
       totalCompareceu,
       totalFaltou,
       vendasEfetivadas,
@@ -109,6 +110,7 @@ export async function GET(req: Request) {
 
     return Response.json(
       {
+        mesReferencia: getMesAtual(),
         aulasHoje: 0,
         totalAulas: 0,
         totalCompareceu: 0,

@@ -21,6 +21,10 @@ export default function DiariasPage() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
 
+  const [busca, setBusca] = useState("");
+  const [dataInicialFiltro, setDataInicialFiltro] = useState("");
+  const [dataFinalFiltro, setDataFinalFiltro] = useState("");
+
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cpf, setCpf] = useState("");
@@ -39,6 +43,19 @@ export default function DiariasPage() {
 
     carregarDiarias();
   }, [router]);
+
+  function hojeISO() {
+    const hoje = new Date();
+    return hoje.toISOString().split("T")[0];
+  }
+
+  function statusDiaria(dataFinal: string) {
+    return dataFinal >= hojeISO() ? "ATIVO" : "FINALIZADO";
+  }
+
+  function corStatusDiaria(dataFinal: string) {
+    return dataFinal >= hojeISO() ? "#16a34a" : "#dc2626";
+  }
 
   function formatarData(dataISO: string) {
     if (!dataISO) return "";
@@ -123,6 +140,8 @@ export default function DiariasPage() {
     setColaboradora(diaria.colaboradora || "");
     setObservacoes(diaria.observacoes || "");
     setMostrarFormulario(true);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function excluirDiaria(id: number) {
@@ -139,85 +158,51 @@ export default function DiariasPage() {
     await carregarDiarias();
   }
 
+  const diariasFiltradas = diarias.filter((diaria) => {
+    const termo = busca.toUpperCase();
+
+    const bateBusca =
+      diaria.nome?.toUpperCase().includes(termo) ||
+      diaria.telefone?.includes(busca) ||
+      diaria.cpf?.includes(busca) ||
+      diaria.colaboradora?.toUpperCase().includes(termo);
+
+    const bateDataInicial =
+      !dataInicialFiltro || diaria.dataInicio >= dataInicialFiltro;
+
+    const bateDataFinal =
+      !dataFinalFiltro || diaria.dataInicio <= dataFinalFiltro;
+
+    return bateBusca && bateDataInicial && bateDataFinal;
+  });
+
   return (
     <main className="min-h-screen flex bg-gray-100">
       <Sidebar />
 
       <section className="flex-1 p-6">
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Diárias</h1>
 
           <button
             onClick={() => {
               limparFormulario();
               setMostrarFormulario(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+            className="bg-blue-900 text-white px-5 py-3 rounded-xl font-bold"
           >
             Cadastrar Diária
           </button>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl shadow mb-8">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="p-4 text-left">Nome</th>
-                <th className="p-4 text-left">Telefone</th>
-                <th className="p-4 text-left">Data Inicial</th>
-                <th className="p-4 text-left">Data Final</th>
-                <th className="p-4 text-left">Dias</th>
-                <th className="p-4 text-left">Ações</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {diarias.map((diaria) => (
-                <tr key={diaria.id} className="border-b">
-                  <td className="p-4">{diaria.nome}</td>
-                  <td className="p-4">{diaria.telefone}</td>
-                  <td className="p-4">{formatarData(diaria.dataInicio)}</td>
-                  <td className="p-4">{formatarData(diaria.dataFinal)}</td>
-                  <td className="p-4">{diaria.quantidadeDias}</td>
-
-                  <td className="p-4">
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => editarDiaria(diaria)}
-                        className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold"
-                      >
-                        Editar
-                      </button>
-
-                      <button
-                        onClick={() => excluirDiaria(diaria.id)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {diarias.length === 0 && (
-                <tr>
-                  <td className="p-4 text-gray-500" colSpan={6}>
-                    Nenhuma diária cadastrada para esta unidade.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
         {mostrarFormulario && (
-          <div className="bg-white p-8 rounded-2xl shadow">
-            <h2 className="text-4xl font-bold mb-6">
+          <div className="bg-white p-5 rounded-2xl shadow mb-6">
+            <h2 className="text-2xl font-bold mb-5">
               {editandoId ? "Editar Diária" : "Cadastrar Diária"}
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Input label="Nome" value={nome} setValue={setNome} />
               <Input label="Telefone" value={telefone} setValue={setTelefone} />
               <Input label="CPF" value={cpf} setValue={setCpf} />
@@ -243,20 +228,20 @@ export default function DiariasPage() {
               />
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <label className="block mb-2">Observações</label>
 
               <textarea
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                className="w-full border rounded-xl p-3 h-32"
+                className="w-full border rounded-xl p-3 h-28"
               />
             </div>
 
-            <div className="flex gap-4 mt-6">
+            <div className="flex gap-4 mt-5">
               <button
                 onClick={salvarDiaria}
-                className="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold"
+                className="bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
               >
                 {editandoId ? "Salvar Edição" : "Salvar Diária"}
               </button>
@@ -266,13 +251,124 @@ export default function DiariasPage() {
                   limparFormulario();
                   setMostrarFormulario(false);
                 }}
-                className="bg-gray-500 text-white px-8 py-4 rounded-xl font-bold"
+                className="bg-gray-500 text-white px-6 py-3 rounded-xl font-bold"
               >
                 Cancelar
               </button>
             </div>
           </div>
         )}
+
+        <div className="bg-white p-5 rounded-2xl shadow mb-8">
+          <div className="flex flex-wrap justify-between items-end gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-3">Diárias Cadastradas</h2>
+
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome, telefone, CPF ou colaboradora..."
+                className="border rounded-xl p-3 w-96 max-w-full"
+              />
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
+              <div>
+                <label className="block mb-1 font-semibold">Data início</label>
+                <input
+                  type="date"
+                  value={dataInicialFiltro}
+                  onChange={(e) => setDataInicialFiltro(e.target.value)}
+                  className="border rounded-xl p-3"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-semibold">Data fim</label>
+                <input
+                  type="date"
+                  value={dataFinalFiltro}
+                  onChange={(e) => setDataFinalFiltro(e.target.value)}
+                  className="border rounded-xl p-3"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  setBusca("");
+                  setDataInicialFiltro("");
+                  setDataFinalFiltro("");
+                }}
+                className="bg-gray-500 text-white px-5 py-3 rounded-xl font-bold self-end"
+              >
+                Limpar
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="border-b">
+                  <th className="p-3 text-left">Nome</th>
+                  <th className="p-3 text-left">Telefone</th>
+                  <th className="p-3 text-left">Data Inicial</th>
+                  <th className="p-3 text-left">Data Final</th>
+                  <th className="p-3 text-left">Dias</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Ações</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {diariasFiltradas.map((diaria) => (
+                  <tr key={diaria.id} className="border-b">
+                    <td className="p-3">{diaria.nome}</td>
+                    <td className="p-3">{diaria.telefone}</td>
+                    <td className="p-3">{formatarData(diaria.dataInicio)}</td>
+                    <td className="p-3">{formatarData(diaria.dataFinal)}</td>
+                    <td className="p-3">{diaria.quantidadeDias}</td>
+
+                    <td
+                      className="p-3 font-bold"
+                      style={{
+                        color: corStatusDiaria(diaria.dataFinal),
+                      }}
+                    >
+                      {statusDiaria(diaria.dataFinal)}
+                    </td>
+
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => editarDiaria(diaria)}
+                          className="bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-bold"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => excluirDiaria(diaria.id)}
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-bold"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {diariasFiltradas.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-gray-500" colSpan={7}>
+                      Nenhuma diária encontrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </main>
   );

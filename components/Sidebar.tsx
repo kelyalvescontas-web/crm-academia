@@ -86,7 +86,7 @@ export default function Sidebar() {
             src={logo}
             alt="Logo"
             style={{
-              width: "115px",
+              width: "130px",
               height: "auto",
               objectFit: "contain",
               display: "block",

@@ -21,10 +21,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json();
+
   const unidadeId = getUnidadeId(req, body);
 
   if (!unidadeId) {
-    return Response.json({ error: "Unidade não informada" }, { status: 400 });
+    return Response.json(
+      { error: "Unidade não informada" },
+      { status: 400 }
+    );
   }
 
   const aula = await prisma.aula.create({
@@ -36,13 +40,22 @@ export async function POST(req: Request) {
       modalidade: body.modalidade,
       colaboradora: body.colaboradora,
       observacoes: body.observacoes || "",
+
       status: body.status || "AGENDADA",
+
       veio: Boolean(body.veio),
       faltou: Boolean(body.faltou),
       remarcou: Boolean(body.remarcou),
       posAulaRealizado: Boolean(body.posAulaRealizado),
       vendaEfetivada: Boolean(body.vendaEfetivada),
+
       codigoMatricula: body.codigoMatricula || "",
+
+      planoFechado: body.planoFechado || "",
+      vendedora: body.vendedora || "",
+      dataConversao: body.dataConversao || "",
+      tipoAluno: body.tipoAluno || "NOVO",
+
       unidadeId,
     },
   });
@@ -52,10 +65,13 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const body = await req.json();
+
   const unidadeId = getUnidadeId(req, body);
 
   const aula = await prisma.aula.update({
-    where: { id: Number(body.id) },
+    where: {
+      id: Number(body.id),
+    },
     data: {
       nomeAluno: body.nomeAluno,
       telefone: body.telefone,
@@ -64,13 +80,22 @@ export async function PUT(req: Request) {
       modalidade: body.modalidade,
       colaboradora: body.colaboradora,
       observacoes: body.observacoes || "",
+
       status: body.status || "AGENDADA",
+
       veio: Boolean(body.veio),
       faltou: Boolean(body.faltou),
       remarcou: Boolean(body.remarcou),
       posAulaRealizado: Boolean(body.posAulaRealizado),
       vendaEfetivada: Boolean(body.vendaEfetivada),
+
       codigoMatricula: body.codigoMatricula || "",
+
+      planoFechado: body.planoFechado || "",
+      vendedora: body.vendedora || "",
+      dataConversao: body.dataConversao || "",
+      tipoAluno: body.tipoAluno || "NOVO",
+
       unidadeId,
     },
   });
@@ -82,7 +107,9 @@ export async function DELETE(req: Request) {
   const body = await req.json();
 
   await prisma.aula.delete({
-    where: { id: Number(body.id) },
+    where: {
+      id: Number(body.id),
+    },
   });
 
   return Response.json({ ok: true });

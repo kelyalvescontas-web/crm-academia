@@ -10,10 +10,12 @@ export default function AulasPage() {
   const [aulas, setAulas] = useState<any[]>([]);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState("");
   const [dataInicialFiltro, setDataInicialFiltro] = useState("");
   const [dataFinalFiltro, setDataFinalFiltro] = useState("");
+  const [filtroColaboradora, setFiltroColaboradora] = useState("");
 
   const [nomeAluno, setNomeAluno] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -29,6 +31,11 @@ export default function AulasPage() {
   const [posAulaRealizado, setPosAulaRealizado] = useState(false);
   const [vendaEfetivada, setVendaEfetivada] = useState(false);
   const [codigoMatricula, setCodigoMatricula] = useState("");
+
+  const [planoFechado, setPlanoFechado] = useState("");
+  const [vendedora, setVendedora] = useState("");
+  const [dataConversao, setDataConversao] = useState("");
+  const [tipoAluno, setTipoAluno] = useState("NOVO");
 
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
@@ -55,7 +62,6 @@ export default function AulasPage() {
     });
 
     const data = await response.json();
-
     setAulas(Array.isArray(data) ? data : []);
   }
 
@@ -74,6 +80,11 @@ export default function AulasPage() {
     setPosAulaRealizado(false);
     setVendaEfetivada(false);
     setCodigoMatricula("");
+    setPlanoFechado("");
+    setVendedora("");
+    setDataConversao("");
+    setTipoAluno("NOVO");
+    setSalvando(false);
   }
 
   function statusAtual() {
@@ -96,6 +107,8 @@ export default function AulasPage() {
   }
 
   async function salvarAula() {
+    if (salvando) return;
+
     const unidadeId = localStorage.getItem("unidadeSelecionadaId");
 
     if (!unidadeId) {
@@ -103,41 +116,53 @@ export default function AulasPage() {
       return;
     }
 
-    const dados = {
-      id: editandoId,
-      unidadeId: Number(unidadeId),
-      nomeAluno: nomeAluno.trim().toUpperCase(),
-      telefone: telefone.trim(),
-      data,
-      horario,
-      modalidade,
-      colaboradora: colaboradora.trim().toUpperCase(),
-      observacoes: observacoes.trim().toUpperCase(),
-      veio,
-      faltou,
-      remarcou,
-      posAulaRealizado,
-      vendaEfetivada,
-      codigoMatricula: codigoMatricula.trim(),
-      status: statusAtual(),
-    };
+    setSalvando(true);
 
-    const response = await fetch("/api/aulas", {
-      method: editandoId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(dados),
-    });
+    try {
+      const dados = {
+        id: editandoId,
+        unidadeId: Number(unidadeId),
+        nomeAluno: nomeAluno.trim().toUpperCase(),
+        telefone: telefone.trim(),
+        data,
+        horario,
+        modalidade,
+        colaboradora: colaboradora.trim().toUpperCase(),
+        observacoes: observacoes.trim().toUpperCase(),
+        veio,
+        faltou,
+        remarcou,
+        posAulaRealizado,
+        vendaEfetivada,
+        codigoMatricula: codigoMatricula.trim(),
+        status: statusAtual(),
+        planoFechado,
+        vendedora: vendedora.trim().toUpperCase(),
+        dataConversao,
+        tipoAluno,
+      };
 
-    if (!response.ok) {
+      const response = await fetch("/api/aulas", {
+        method: editandoId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dados),
+      });
+
+      if (!response.ok) {
+        alert("Erro ao salvar aula");
+        setSalvando(false);
+        return;
+      }
+
+      await carregarAulas();
+      limparFormulario();
+      setMostrarFormulario(false);
+    } catch (error) {
       alert("Erro ao salvar aula");
-      return;
+      setSalvando(false);
     }
-
-    await carregarAulas();
-    limparFormulario();
-    setMostrarFormulario(false);
   }
 
   function editarAula(aula: any) {
@@ -155,6 +180,10 @@ export default function AulasPage() {
     setPosAulaRealizado(Boolean(aula.posAulaRealizado));
     setVendaEfetivada(Boolean(aula.vendaEfetivada));
     setCodigoMatricula(aula.codigoMatricula || "");
+    setPlanoFechado(aula.planoFechado || "");
+    setVendedora(aula.vendedora || "");
+    setDataConversao(aula.dataConversao || "");
+    setTipoAluno(aula.tipoAluno || "NOVO");
     setMostrarFormulario(true);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -264,6 +293,15 @@ Vamos agendar ainda essa semana?`;
     );
   }
 
+  const colaboradorasUnicas = Array.from(
+    new Set(
+      aulas
+        .map((aula) => aula.colaboradora)
+        .filter(Boolean)
+        .map((nome) => String(nome).toUpperCase())
+    )
+  ).sort();
+
   const aulasFiltradas = aulas.filter((aula) => {
     const termo = busca.toUpperCase();
 
@@ -271,15 +309,22 @@ Vamos agendar ainda essa semana?`;
       aula.nomeAluno?.toUpperCase().includes(termo) ||
       aula.telefone?.includes(busca) ||
       aula.modalidade?.toUpperCase().includes(termo) ||
-      aula.status?.toUpperCase().includes(termo);
+      aula.status?.toUpperCase().includes(termo) ||
+      aula.colaboradora?.toUpperCase().includes(termo) ||
+      aula.vendedora?.toUpperCase().includes(termo) ||
+      aula.planoFechado?.toUpperCase().includes(termo) ||
+      aula.tipoAluno?.toUpperCase().includes(termo);
+
+    const bateColaboradora =
+      !filtroColaboradora ||
+      aula.colaboradora?.toUpperCase() === filtroColaboradora.toUpperCase();
 
     const bateDataInicial =
       !dataInicialFiltro || aula.data >= dataInicialFiltro;
 
-    const bateDataFinal =
-      !dataFinalFiltro || aula.data <= dataFinalFiltro;
+    const bateDataFinal = !dataFinalFiltro || aula.data <= dataFinalFiltro;
 
-    return bateBusca && bateDataInicial && bateDataFinal;
+    return bateBusca && bateColaboradora && bateDataInicial && bateDataFinal;
   });
 
   return (
@@ -334,25 +379,42 @@ Vamos agendar ainda essa semana?`;
               <Input label="Data da aula" value={data} setValue={setData} type="date" />
               <Input label="Horário" value={horario} setValue={setHorario} type="time" />
 
-              <div>
-                <label className="block mb-2">Modalidade</label>
-                <select
-                  value={modalidade}
-                  onChange={(e) => setModalidade(e.target.value)}
-                  className="w-full border rounded-xl p-3"
-                >
-                  <option>MUSCULAÇÃO</option>
-                  <option>PUMP</option>
-                  <option>GAP</option>
-                  <option>BOXE</option>
-                  <option>JIU-JITSU</option>
-                  <option>FUNCIONAL</option>
-                  <option>RITMOS</option>
-                  <option>P-COMBAT</option>
-                </select>
-              </div>
+              <Select label="Modalidade" value={modalidade} setValue={setModalidade}>
+                <option value="MUSCULAÇÃO">MUSCULAÇÃO</option>
+                <option value="PUMP">PUMP</option>
+                <option value="GAP">GAP</option>
+                <option value="BOXE">BOXE</option>
+                <option value="JIU-JITSU">JIU-JITSU</option>
+                <option value="FUNCIONAL">FUNCIONAL</option>
+                <option value="RITMOS">RITMOS</option>
+                <option value="P-COMBAT">P-COMBAT</option>
+              </Select>
 
               <Input label="Colaboradora" value={colaboradora} setValue={setColaboradora} />
+
+              <Select label="Plano fechado" value={planoFechado} setValue={setPlanoFechado}>
+                <option value="">Selecione</option>
+                <option value="MENSAL">MENSAL</option>
+                <option value="TRIMESTRAL">TRIMESTRAL</option>
+                <option value="SEMESTRAL">SEMESTRAL</option>
+                <option value="ANUAL">ANUAL</option>
+                <option value="OUTRO">OUTRO</option>
+              </Select>
+
+              <Input label="Vendedora" value={vendedora} setValue={setVendedora} />
+
+              <Input
+                label="Data de conversão"
+                value={dataConversao}
+                setValue={setDataConversao}
+                type="date"
+              />
+
+              <Select label="Tipo do aluno" value={tipoAluno} setValue={setTipoAluno}>
+                <option value="NOVO">NOVO</option>
+                <option value="RETORNO">RETORNO</option>
+                <option value="RENOVAÇÃO">RENOVAÇÃO</option>
+              </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-5">
@@ -390,9 +452,16 @@ Vamos agendar ainda essa semana?`;
             <div className="flex gap-4 mt-5">
               <button
                 onClick={salvarAula}
-                className="bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
+                disabled={salvando}
+                className={`px-6 py-3 rounded-xl font-bold text-white ${
+                  salvando ? "bg-gray-400 cursor-not-allowed" : "bg-blue-900"
+                }`}
               >
-                {editandoId ? "Salvar Edição" : "Salvar Aula"}
+                {salvando
+                  ? "Salvando..."
+                  : editandoId
+                  ? "Salvar Edição"
+                  : "Salvar Aula"}
               </button>
 
               <button
@@ -400,6 +469,7 @@ Vamos agendar ainda essa semana?`;
                   limparFormulario();
                   setMostrarFormulario(false);
                 }}
+                disabled={salvando}
                 className="bg-gray-500 text-white px-6 py-3 rounded-xl font-bold"
               >
                 Cancelar
@@ -416,12 +486,28 @@ Vamos agendar ainda essa semana?`;
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por aluno, telefone, modalidade ou status..."
+                placeholder="Buscar por aluno, telefone, modalidade, status, plano, vendedora..."
                 className="border rounded-xl p-3 w-96 max-w-full"
               />
             </div>
 
             <div className="flex gap-3 flex-wrap">
+              <div>
+                <label className="block mb-1 font-semibold">Colaboradora</label>
+                <select
+                  value={filtroColaboradora}
+                  onChange={(e) => setFiltroColaboradora(e.target.value)}
+                  className="border rounded-xl p-3"
+                >
+                  <option value="">Todas</option>
+                  {colaboradorasUnicas.map((nome) => (
+                    <option key={nome} value={nome}>
+                      {nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block mb-1 font-semibold">Data início</label>
                 <input
@@ -445,6 +531,7 @@ Vamos agendar ainda essa semana?`;
               <button
                 onClick={() => {
                   setBusca("");
+                  setFiltroColaboradora("");
                   setDataInicialFiltro("");
                   setDataFinalFiltro("");
                 }}
@@ -460,10 +547,10 @@ Vamos agendar ainda essa semana?`;
               <thead>
                 <tr className="border-b">
                   <th className="p-3 text-left">Aluno</th>
-                  <th className="p-3 text-left">Telefone</th>
                   <th className="p-3 text-left">Data</th>
                   <th className="p-3 text-left">Horário</th>
                   <th className="p-3 text-left">Modalidade</th>
+                  <th className="p-3 text-left">Colaboradora</th>
                   <th className="p-3 text-left">Status</th>
                   <th className="p-3 text-left">Ações</th>
                 </tr>
@@ -473,10 +560,10 @@ Vamos agendar ainda essa semana?`;
                 {aulasFiltradas.map((aula) => (
                   <tr key={aula.id} className="border-b">
                     <td className="p-3">{aula.nomeAluno}</td>
-                    <td className="p-3">{aula.telefone}</td>
                     <td className="p-3">{formatarData(aula.data)}</td>
                     <td className="p-3">{aula.horario}</td>
                     <td className="p-3">{aula.modalidade}</td>
+                    <td className="p-3">{aula.colaboradora || "-"}</td>
                     <td
                       className="p-3 font-bold"
                       style={{ color: corStatus(aula.status) }}
@@ -530,6 +617,22 @@ function Input({ label, value, setValue, type = "text" }: any) {
         onChange={(e) => setValue(e.target.value)}
         className="w-full border rounded-xl p-3"
       />
+    </div>
+  );
+}
+
+function Select({ label, value, setValue, children }: any) {
+  return (
+    <div>
+      <label className="block mb-2">{label}</label>
+
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      >
+        {children}
+      </select>
     </div>
   );
 }

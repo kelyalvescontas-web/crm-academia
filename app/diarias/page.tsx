@@ -20,8 +20,10 @@ export default function DiariasPage() {
   const [diarias, setDiarias] = useState<any[]>([]);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("");
   const [dataInicialFiltro, setDataInicialFiltro] = useState("");
   const [dataFinalFiltro, setDataFinalFiltro] = useState("");
 
@@ -32,6 +34,7 @@ export default function DiariasPage() {
   const [quantidadeDias, setQuantidadeDias] = useState(1);
   const [colaboradora, setColaboradora] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [tipoDiaria, setTipoDiaria] = useState("PAGA");
 
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
@@ -49,8 +52,17 @@ export default function DiariasPage() {
     return hoje.toISOString().split("T")[0];
   }
 
+  function calcularDataFinal(inicio: string, dias: number) {
+    if (!inicio) return "";
+
+    const data = new Date(`${inicio}T00:00:00`);
+    data.setDate(data.getDate() + Number(dias || 1) - 1);
+
+    return data.toISOString().split("T")[0];
+  }
+
   function statusDiaria(dataFinal: string) {
-    return dataFinal >= hojeISO() ? "ATIVO" : "FINALIZADO";
+    return dataFinal >= hojeISO() ? "ATIVA" : "FINALIZADA";
   }
 
   function corStatusDiaria(dataFinal: string) {
@@ -93,9 +105,13 @@ export default function DiariasPage() {
     setQuantidadeDias(1);
     setColaboradora("");
     setObservacoes("");
+    setTipoDiaria("PAGA");
+    setSalvando(false);
   }
 
   async function salvarDiaria() {
+    if (salvando) return;
+
     const unidadeId = pegarUnidadeAtual();
 
     if (!unidadeId) {
@@ -103,30 +119,44 @@ export default function DiariasPage() {
       return;
     }
 
-    const response = await fetch("/api/diarias", {
-      method: editandoId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: editandoId,
-        nome: nome.trim().toUpperCase(),
-        telefone: telefone.trim(),
-        cpf: cpf.trim(),
-        dataInicio,
-        quantidadeDias,
-        colaboradora: colaboradora.trim().toUpperCase(),
-        observacoes: observacoes.trim().toUpperCase(),
-        unidadeId: Number(unidadeId),
-      }),
-    });
+    setSalvando(true);
 
-    if (response.ok) {
-      await carregarDiarias();
-      limparFormulario();
-      setMostrarFormulario(false);
-    } else {
+    const dataFinal = calcularDataFinal(dataInicio, quantidadeDias);
+    const status = statusDiaria(dataFinal);
+
+    try {
+      const response = await fetch("/api/diarias", {
+        method: editandoId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: editandoId,
+          nome: nome.trim().toUpperCase(),
+          telefone: telefone.trim(),
+          cpf: cpf.trim(),
+          dataInicio,
+          dataFinal,
+          quantidadeDias: Number(quantidadeDias),
+          colaboradora: colaboradora.trim().toUpperCase(),
+          observacoes: observacoes.trim().toUpperCase(),
+          status,
+          tipoDiaria,
+          unidadeId: Number(unidadeId),
+        }),
+      });
+
+      if (response.ok) {
+        await carregarDiarias();
+        limparFormulario();
+        setMostrarFormulario(false);
+      } else {
+        alert("Erro ao salvar diária");
+        setSalvando(false);
+      }
+    } catch (error) {
       alert("Erro ao salvar diária");
+      setSalvando(false);
     }
   }
 
@@ -139,6 +169,7 @@ export default function DiariasPage() {
     setQuantidadeDias(diaria.quantidadeDias || 1);
     setColaboradora(diaria.colaboradora || "");
     setObservacoes(diaria.observacoes || "");
+    setTipoDiaria(diaria.tipoDiaria || "PAGA");
     setMostrarFormulario(true);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -160,20 +191,25 @@ export default function DiariasPage() {
 
   const diariasFiltradas = diarias.filter((diaria) => {
     const termo = busca.toUpperCase();
+    const statusAtual = statusDiaria(diaria.dataFinal);
 
     const bateBusca =
       diaria.nome?.toUpperCase().includes(termo) ||
       diaria.telefone?.includes(busca) ||
       diaria.cpf?.includes(busca) ||
-      diaria.colaboradora?.toUpperCase().includes(termo);
+      diaria.colaboradora?.toUpperCase().includes(termo) ||
+      diaria.tipoDiaria?.toUpperCase().includes(termo) ||
+      statusAtual.toUpperCase().includes(termo);
+
+    const bateStatus = !statusFiltro || statusAtual === statusFiltro;
 
     const bateDataInicial =
-      !dataInicialFiltro || diaria.dataInicio >= dataInicialFiltro;
+      !dataInicialFiltro || diaria.dataFinal >= dataInicialFiltro;
 
     const bateDataFinal =
       !dataFinalFiltro || diaria.dataInicio <= dataFinalFiltro;
 
-    return bateBusca && bateDataInicial && bateDataFinal;
+    return bateBusca && bateStatus && bateDataInicial && bateDataFinal;
   });
 
   return (
@@ -226,6 +262,24 @@ export default function DiariasPage() {
                 value={colaboradora}
                 setValue={setColaboradora}
               />
+
+              <Select
+                label="Tipo de diária"
+                value={tipoDiaria}
+                setValue={setTipoDiaria}
+              >
+                <option value="PAGA">PAGA</option>
+                <option value="FREE">FREE</option>
+              </Select>
+
+              <div>
+                <label className="block mb-2">Data Final</label>
+                <div className="w-full border rounded-xl p-3 bg-gray-100">
+                  {calcularDataFinal(dataInicio, quantidadeDias)
+                    ? formatarData(calcularDataFinal(dataInicio, quantidadeDias))
+                    : "Preencha a data inicial"}
+                </div>
+              </div>
             </div>
 
             <div className="mt-5">
@@ -241,9 +295,16 @@ export default function DiariasPage() {
             <div className="flex gap-4 mt-5">
               <button
                 onClick={salvarDiaria}
-                className="bg-blue-900 text-white px-6 py-3 rounded-xl font-bold"
+                disabled={salvando}
+                className={`px-6 py-3 rounded-xl font-bold text-white ${
+                  salvando ? "bg-gray-400 cursor-not-allowed" : "bg-blue-900"
+                }`}
               >
-                {editandoId ? "Salvar Edição" : "Salvar Diária"}
+                {salvando
+                  ? "Salvando..."
+                  : editandoId
+                  ? "Salvar Edição"
+                  : "Salvar Diária"}
               </button>
 
               <button
@@ -251,6 +312,7 @@ export default function DiariasPage() {
                   limparFormulario();
                   setMostrarFormulario(false);
                 }}
+                disabled={salvando}
                 className="bg-gray-500 text-white px-6 py-3 rounded-xl font-bold"
               >
                 Cancelar
@@ -267,12 +329,25 @@ export default function DiariasPage() {
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome, telefone, CPF ou colaboradora..."
+                placeholder="Buscar por nome, telefone, CPF, colaboradora, status ou tipo..."
                 className="border rounded-xl p-3 w-96 max-w-full"
               />
             </div>
 
             <div className="flex gap-3 flex-wrap">
+              <div>
+                <label className="block mb-1 font-semibold">Status</label>
+                <select
+                  value={statusFiltro}
+                  onChange={(e) => setStatusFiltro(e.target.value)}
+                  className="border rounded-xl p-3"
+                >
+                  <option value="">Todos</option>
+                  <option value="ATIVA">Ativa</option>
+                  <option value="FINALIZADA">Finalizada</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block mb-1 font-semibold">Data início</label>
                 <input
@@ -296,6 +371,7 @@ export default function DiariasPage() {
               <button
                 onClick={() => {
                   setBusca("");
+                  setStatusFiltro("");
                   setDataInicialFiltro("");
                   setDataFinalFiltro("");
                 }}
@@ -307,7 +383,7 @@ export default function DiariasPage() {
           </div>
 
           <div className="overflow-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[950px]">
               <thead>
                 <tr className="border-b">
                   <th className="p-3 text-left">Nome</th>
@@ -315,6 +391,7 @@ export default function DiariasPage() {
                   <th className="p-3 text-left">Data Inicial</th>
                   <th className="p-3 text-left">Data Final</th>
                   <th className="p-3 text-left">Dias</th>
+                  <th className="p-3 text-left">Tipo</th>
                   <th className="p-3 text-left">Status</th>
                   <th className="p-3 text-left">Ações</th>
                 </tr>
@@ -328,6 +405,9 @@ export default function DiariasPage() {
                     <td className="p-3">{formatarData(diaria.dataInicio)}</td>
                     <td className="p-3">{formatarData(diaria.dataFinal)}</td>
                     <td className="p-3">{diaria.quantidadeDias}</td>
+                    <td className="p-3 font-bold">
+                      {diaria.tipoDiaria || "PAGA"}
+                    </td>
 
                     <td
                       className="p-3 font-bold"
@@ -360,7 +440,7 @@ export default function DiariasPage() {
 
                 {diariasFiltradas.length === 0 && (
                   <tr>
-                    <td className="p-4 text-gray-500" colSpan={7}>
+                    <td className="p-4 text-gray-500" colSpan={8}>
                       Nenhuma diária encontrada.
                     </td>
                   </tr>
@@ -385,6 +465,22 @@ function Input({ label, value, setValue, type = "text" }: any) {
         onChange={(e) => setValue(e.target.value)}
         className="w-full border rounded-xl p-3"
       />
+    </div>
+  );
+}
+
+function Select({ label, value, setValue, children }: any) {
+  return (
+    <div>
+      <label className="block mb-2">{label}</label>
+
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      >
+        {children}
+      </select>
     </div>
   );
 }

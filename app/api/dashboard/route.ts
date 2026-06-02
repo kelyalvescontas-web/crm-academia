@@ -9,17 +9,23 @@ function hojeISO() {
 
 function getMesAtual() {
   const hoje = new Date();
-
   const ano = hoje.getFullYear();
   const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-
   return `${ano}-${mes}`;
 }
 
 function pertenceAoMes(data: string, mesReferencia: string) {
   if (!data) return false;
-
   return data.startsWith(mesReferencia);
+}
+
+function diariaAtivaNoMes(diaria: any, mesReferencia: string) {
+  const inicioMes = `${mesReferencia}-01`;
+  const [ano, mes] = mesReferencia.split("-").map(Number);
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const fimMes = `${mesReferencia}-${String(ultimoDia).padStart(2, "0")}`;
+
+  return diaria.dataInicio <= fimMes && diaria.dataFinal >= inicioMes;
 }
 
 export async function GET(req: Request) {
@@ -31,7 +37,6 @@ export async function GET(req: Request) {
 
     const unidadeId = unidadeIdParam ? Number(unidadeIdParam) : null;
     const mesReferencia = mesParam || getMesAtual();
-
     const hoje = hojeISO();
 
     const aulas = await prisma.aula.findMany({
@@ -47,7 +52,7 @@ export async function GET(req: Request) {
     );
 
     const diariasDoMes = diarias.filter((diaria) =>
-      pertenceAoMes(diaria.dataInicio, mesReferencia)
+      diariaAtivaNoMes(diaria, mesReferencia)
     );
 
     const aulasHoje = aulasDoMes.filter((aula) => aula.data === hoje);
@@ -60,20 +65,27 @@ export async function GET(req: Request) {
       (aula) => aula.faltou === true || aula.status === "FALTOU"
     ).length;
 
-    const vendasEfetivadas = aulasDoMes.filter(
+    const vendasDoMes = aulasDoMes.filter(
       (aula) =>
         aula.vendaEfetivada === true || aula.status === "VENDA EFETIVADA"
-    ).length;
+    );
+
+    const vendasEfetivadas = vendasDoMes.length;
 
     const taxaComparecimento =
       aulasDoMes.length > 0
         ? Math.round((totalCompareceu / aulasDoMes.length) * 100)
         : 0;
 
+    const taxaConversao =
+      aulasDoMes.length > 0
+        ? Math.round((vendasEfetivadas / aulasDoMes.length) * 100)
+        : 0;
+
     const totalDiarias = diariasDoMes.length;
 
     const diariasAtivas = diariasDoMes.filter(
-      (diaria) => diaria.dataFinal >= hoje
+      (diaria) => diaria.dataInicio <= hoje && diaria.dataFinal >= hoje
     ).length;
 
     const diariasVencendoHoje = diariasDoMes.filter(
@@ -81,15 +93,40 @@ export async function GET(req: Request) {
     );
 
     const modalidades: any = {};
+    const aulasPorColaboradora: any = {};
+    const vendasPorVendedora: any = {};
+    const conversaoAgendouVendeu: any[] = [];
 
     aulasDoMes.forEach((aula) => {
       const modalidade = aula.modalidade || "OUTROS";
+      modalidades[modalidade] = (modalidades[modalidade] || 0) + 1;
 
-      if (!modalidades[modalidade]) {
-        modalidades[modalidade] = 0;
+      const colaboradora = aula.colaboradora || "NÃO INFORMADO";
+      aulasPorColaboradora[colaboradora] =
+        (aulasPorColaboradora[colaboradora] || 0) + 1;
+    });
+
+    vendasDoMes.forEach((aula) => {
+      const vendedora = aula.vendedora || "NÃO INFORMADO";
+      const colaboradora = aula.colaboradora || "NÃO INFORMADO";
+
+      vendasPorVendedora[vendedora] =
+        (vendasPorVendedora[vendedora] || 0) + 1;
+
+      const existente = conversaoAgendouVendeu.find(
+        (item) =>
+          item.colaboradora === colaboradora && item.vendedora === vendedora
+      );
+
+      if (existente) {
+        existente.quantidade += 1;
+      } else {
+        conversaoAgendouVendeu.push({
+          colaboradora,
+          vendedora,
+          quantidade: 1,
+        });
       }
-
-      modalidades[modalidade]++;
     });
 
     return Response.json({
@@ -100,29 +137,34 @@ export async function GET(req: Request) {
       totalFaltou,
       vendasEfetivadas,
       taxaComparecimento,
+      taxaConversao,
       totalDiarias,
       diariasAtivas,
       diariasVencendoHoje,
       modalidades,
+      aulasPorColaboradora,
+      vendasPorVendedora,
+      conversaoAgendouVendeu,
     });
   } catch (error) {
     console.log(error);
 
-    return Response.json(
-      {
-        mesReferencia: getMesAtual(),
-        aulasHoje: 0,
-        totalAulas: 0,
-        totalCompareceu: 0,
-        totalFaltou: 0,
-        vendasEfetivadas: 0,
-        taxaComparecimento: 0,
-        totalDiarias: 0,
-        diariasAtivas: 0,
-        diariasVencendoHoje: [],
-        modalidades: {},
-      },
-      { status: 200 }
-    );
+    return Response.json({
+      mesReferencia: getMesAtual(),
+      aulasHoje: 0,
+      totalAulas: 0,
+      totalCompareceu: 0,
+      totalFaltou: 0,
+      vendasEfetivadas: 0,
+      taxaComparecimento: 0,
+      taxaConversao: 0,
+      totalDiarias: 0,
+      diariasAtivas: 0,
+      diariasVencendoHoje: [],
+      modalidades: {},
+      aulasPorColaboradora: {},
+      vendasPorVendedora: {},
+      conversaoAgendouVendeu: [],
+    });
   }
 }

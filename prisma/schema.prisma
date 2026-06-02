@@ -24,7 +24,7 @@ model Usuario {
   nome      String
   email     String   @unique
   senha     String
-  cargo     String
+  cargo     String   @default("ADMIN")
 
   unidadeId Int?
   unidade   Unidade? @relation(fields: [unidadeId], references: [id])
@@ -50,6 +50,11 @@ model Aula {
   vendaEfetivada     Boolean  @default(false)
   codigoMatricula    String?
 
+  planoFechado       String?
+  vendedora          String?
+  dataConversao      String?
+  tipoAluno          String?  @default("NOVO")
+
   unidadeId          Int?
   unidade            Unidade? @relation(fields: [unidadeId], references: [id])
 
@@ -66,6 +71,9 @@ model Diaria {
   quantidadeDias   Int
   observacoes      String?
   colaboradora     String?
+
+  status           String   @default("ATIVA")
+  tipoDiaria       String   @default("PAGA")
 
   unidadeId        Int?
   unidade          Unidade? @relation(fields: [unidadeId], references: [id])

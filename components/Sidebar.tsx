@@ -72,12 +72,28 @@ export default function Sidebar() {
     { nome: "Configurações", rota: "/configuracoes" },
   ];
 
+  const menuAdminGeral = [
+    { nome: "Dashboard", rota: "/" },
+    { nome: "Aulas Agendadas", rota: "/aulas" },
+    { nome: "Diárias", rota: "/diarias" },
+    { nome: "Calendário", rota: "/calendario" },
+    { nome: "Usuários", rota: "/usuarios" },
+    { nome: "Relatórios", rota: "/relatorios" },
+    { nome: "Histórico", rota: "/historico" },
+    { nome: "Configurações", rota: "/configuracoes" },
+  ];
+
   const menuInstrutor = [
     { nome: "Calendário", rota: "/calendario" },
     { nome: "Usuários", rota: "/usuarios" },
   ];
 
-  const menu = cargo === "INSTRUTOR" ? menuInstrutor : menuAdmin;
+  const menu =
+    cargo === "INSTRUTOR"
+      ? menuInstrutor
+      : cargo === "ADMIN_GERAL"
+      ? menuAdminGeral
+      : menuAdmin;
 
   return (
     <div

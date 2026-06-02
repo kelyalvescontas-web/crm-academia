@@ -17,6 +17,7 @@ model Unidade {
   aulas          Aula[]
   diarias        Diaria[]
   configuracoes  Configuracao[]
+  historicos     Historico[]
 }
 
 model Usuario {
@@ -55,6 +56,12 @@ model Aula {
   dataConversao      String?
   tipoAluno          String?  @default("NOVO")
 
+  criadoPorId        Int?
+  criadoPorNome      String?
+  alteradoPorId      Int?
+  alteradoPorNome    String?
+  atualizadoEm       DateTime?
+
   unidadeId          Int?
   unidade            Unidade? @relation(fields: [unidadeId], references: [id])
 
@@ -74,6 +81,12 @@ model Diaria {
 
   status           String   @default("ATIVA")
   tipoDiaria       String   @default("PAGA")
+
+  criadoPorId      Int?
+  criadoPorNome    String?
+  alteradoPorId    Int?
+  alteradoPorNome  String?
+  atualizadoEm     DateTime?
 
   unidadeId        Int?
   unidade          Unidade? @relation(fields: [unidadeId], references: [id])
@@ -100,4 +113,26 @@ model Configuracao {
   unidade       Unidade? @relation(fields: [unidadeId], references: [id])
 
   createdAt     DateTime @default(now())
+}
+
+model Historico {
+  id              Int      @id @default(autoincrement())
+
+  usuarioId       Int?
+  usuarioNome     String?
+  usuarioCargo    String?
+
+  acao            String
+  tela            String
+  registroId      Int?
+  registroNome    String?
+
+  descricao       String?
+  dadosAntes      String?
+  dadosDepois     String?
+
+  unidadeId       Int?
+  unidade         Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt       DateTime @default(now())
 }

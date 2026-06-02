@@ -65,6 +65,61 @@ export default function AulasPage() {
     setAulas(Array.isArray(data) ? data : []);
   }
 
+  function somenteNumeros(valor: string) {
+    return valor.replace(/\D/g, "");
+  }
+
+  function formatarTelefone(valor: string) {
+    const numeros = somenteNumeros(valor).slice(0, 11);
+
+    if (numeros.length <= 2) return numeros;
+    if (numeros.length <= 7) {
+      return `(${numeros.slice(0, 2)})${numeros.slice(2)}`;
+    }
+
+    return `(${numeros.slice(0, 2)})${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+  }
+
+  function telefoneValido(valor: string) {
+    const numeros = somenteNumeros(valor);
+    return numeros.length === 10 || numeros.length === 11;
+  }
+
+  function normalizarNome(nome: string) {
+    return nome
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  }
+
+  function verificarAulaDuplicada() {
+    const telefoneAtual = somenteNumeros(telefone);
+    const nomeAtual = normalizarNome(nomeAluno);
+
+    if (!telefoneAtual && !nomeAtual) return null;
+
+    return aulas.find((aula) => {
+      if (editandoId && aula.id === editandoId) return false;
+
+      const telefoneAula = somenteNumeros(aula.telefone || "");
+      const nomeAula = normalizarNome(aula.nomeAluno || "");
+
+      const mesmoTelefone =
+        telefoneAtual.length >= 10 &&
+        telefoneAula.length >= 10 &&
+        telefoneAula === telefoneAtual;
+
+      const mesmoNome =
+        nomeAtual.length >= 5 &&
+        nomeAula.length >= 5 &&
+        nomeAula === nomeAtual;
+
+      return mesmoTelefone || mesmoNome;
+    });
+  }
+
   function limparFormulario() {
     setEditandoId(null);
     setNomeAluno("");
@@ -116,6 +171,26 @@ export default function AulasPage() {
       return;
     }
 
+    if (!telefoneValido(telefone)) {
+      alert("Telefone inválido. Preencha no formato (XX)XXXXX-XXXX.");
+      return;
+    }
+
+    const aulaDuplicada = verificarAulaDuplicada();
+
+    if (aulaDuplicada) {
+      const continuar = confirm(
+        `Atenção!\n\nEste aluno já possui uma aula experimental cadastrada:\n\n` +
+          `Nome: ${aulaDuplicada.nomeAluno || "-"}\n` +
+          `Data: ${formatarData(aulaDuplicada.data)}\n` +
+          `Modalidade: ${aulaDuplicada.modalidade || "-"}\n` +
+          `Status: ${aulaDuplicada.status || "AGENDADA"}\n\n` +
+          `Deseja continuar mesmo assim?`
+      );
+
+      if (!continuar) return;
+    }
+
     setSalvando(true);
 
     try {
@@ -123,7 +198,7 @@ export default function AulasPage() {
         id: editandoId,
         unidadeId: Number(unidadeId),
         nomeAluno: nomeAluno.trim().toUpperCase(),
-        telefone: telefone.trim(),
+        telefone: formatarTelefone(telefone.trim()),
         data,
         horario,
         modalidade,
@@ -168,7 +243,7 @@ export default function AulasPage() {
   function editarAula(aula: any) {
     setEditandoId(aula.id);
     setNomeAluno(aula.nomeAluno || "");
-    setTelefone(aula.telefone || "");
+    setTelefone(formatarTelefone(aula.telefone || ""));
     setData(aula.data || "");
     setHorario(aula.horario || "");
     setModalidade(aula.modalidade || "MUSCULAÇÃO");
@@ -224,8 +299,8 @@ export default function AulasPage() {
     const colab = primeiroNome(colaboradora);
     const numero = telefone.replace(/\D/g, "");
 
-    if (!numero) {
-      alert("Preencha o telefone antes de abrir o WhatsApp");
+    if (!telefoneValido(telefone)) {
+      alert("Preencha um telefone válido antes de abrir o WhatsApp");
       return;
     }
 
@@ -375,7 +450,19 @@ Vamos agendar ainda essa semana?`;
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Input label="Nome do aluno" value={nomeAluno} setValue={setNomeAluno} />
-              <Input label="Telefone" value={telefone} setValue={setTelefone} />
+
+              <div>
+                <label className="block mb-2">Telefone</label>
+                <input
+                  type="text"
+                  value={telefone}
+                  maxLength={14}
+                  onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+                  placeholder="(44)99999-9999"
+                  className="w-full border rounded-xl p-3"
+                />
+              </div>
+
               <Input label="Data da aula" value={data} setValue={setData} type="date" />
               <Input label="Horário" value={horario} setValue={setHorario} type="time" />
 

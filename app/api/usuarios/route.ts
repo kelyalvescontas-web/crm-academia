@@ -3,6 +3,57 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+function dadosUsuario(body: any) {
+  return {
+    usuarioId: body.usuarioId ? Number(body.usuarioId) : null,
+    usuarioNome: body.usuarioNome || "NÃO IDENTIFICADO",
+    usuarioCargo: body.usuarioCargo || "",
+  };
+}
+
+async function registrarHistorico({
+  body,
+  acao,
+  tela,
+  registroId,
+  registroNome,
+  unidadeId,
+  dadosAntes,
+  dadosDepois,
+}: any) {
+  const usuarioLogado = dadosUsuario(body);
+
+  await prisma.historico.create({
+    data: {
+      usuarioId: usuarioLogado.usuarioId,
+      usuarioNome: usuarioLogado.usuarioNome,
+      usuarioCargo: usuarioLogado.usuarioCargo,
+
+      acao,
+      tela,
+
+      registroId,
+      registroNome,
+
+      descricao: `${acao} em ${tela}: ${registroNome || ""}`,
+
+      dadosAntes: dadosAntes ? JSON.stringify(dadosAntes) : "",
+      dadosDepois: dadosDepois ? JSON.stringify(dadosDepois) : "",
+
+      unidadeId,
+    },
+  });
+}
+
+function removerSenha(usuario: any) {
+  if (!usuario) return usuario;
+
+  const copia = { ...usuario };
+  delete copia.senha;
+
+  return copia;
+}
+
 export async function GET() {
   try {
     const usuarios = await prisma.usuario.findMany({
@@ -42,6 +93,17 @@ export async function POST(req: Request) {
       include: { unidade: true },
     });
 
+    await registrarHistorico({
+      body,
+      acao: "CRIOU",
+      tela: "USUARIOS",
+      registroId: usuario.id,
+      registroNome: usuario.nome,
+      unidadeId: usuario.unidadeId,
+      dadosAntes: null,
+      dadosDepois: removerSenha(usuario),
+    });
+
     return Response.json(usuario);
   } catch (error) {
     console.log(error);
@@ -52,6 +114,11 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
+
+    const usuarioAntes = await prisma.usuario.findUnique({
+      where: { id: Number(body.id) },
+      include: { unidade: true },
+    });
 
     const data: any = {
       nome: body.nome,
@@ -70,6 +137,17 @@ export async function PUT(req: Request) {
       include: { unidade: true },
     });
 
+    await registrarHistorico({
+      body,
+      acao: "EDITOU",
+      tela: "USUARIOS",
+      registroId: usuario.id,
+      registroNome: usuario.nome,
+      unidadeId: usuario.unidadeId,
+      dadosAntes: removerSenha(usuarioAntes),
+      dadosDepois: removerSenha(usuario),
+    });
+
     return Response.json(usuario);
   } catch (error) {
     console.log(error);
@@ -81,8 +159,24 @@ export async function DELETE(req: Request) {
   try {
     const body = await req.json();
 
+    const usuarioAntes = await prisma.usuario.findUnique({
+      where: { id: Number(body.id) },
+      include: { unidade: true },
+    });
+
     await prisma.usuario.delete({
       where: { id: Number(body.id) },
+    });
+
+    await registrarHistorico({
+      body,
+      acao: "EXCLUIU",
+      tela: "USUARIOS",
+      registroId: Number(body.id),
+      registroNome: usuarioAntes?.nome || "",
+      unidadeId: usuarioAntes?.unidadeId || null,
+      dadosAntes: removerSenha(usuarioAntes),
+      dadosDepois: null,
     });
 
     return Response.json({ ok: true });

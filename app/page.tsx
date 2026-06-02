@@ -132,15 +132,46 @@ export default function Home() {
     }
   }
 
+  function gerarTopConversao() {
+    const aulasPorColaboradora = dashboard.aulasPorColaboradora || {};
+    const vendasGeradasPorColaboradora: any = {};
+
+    (dashboard.conversaoAgendouVendeu || []).forEach((item: any) => {
+      const colaboradora = item.colaboradora || "NÃO INFORMADO";
+      vendasGeradasPorColaboradora[colaboradora] =
+        (vendasGeradasPorColaboradora[colaboradora] || 0) +
+        Number(item.quantidade || 0);
+    });
+
+    const resultado: any = {};
+
+    Object.entries(aulasPorColaboradora).forEach(([nome, totalAulas]: any) => {
+      const vendas = vendasGeradasPorColaboradora[nome] || 0;
+      const aulas = Number(totalAulas || 0);
+      const taxa = aulas > 0 ? Math.round((vendas / aulas) * 100) : 0;
+
+      resultado[nome] = taxa;
+    });
+
+    return resultado;
+  }
+
+  const topConversao = gerarTopConversao();
+
   return (
     <main style={{ display: "flex", background: "#f3f4f6", minHeight: "100vh" }}>
       <Sidebar />
 
       <section style={{ flex: 1, padding: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", gap: "15px", flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: "34px", fontWeight: "bold" }}>
-            Dashboard Comercial
-          </h1>
+        <div style={topo}>
+          <div>
+            <h1 style={{ fontSize: "34px", fontWeight: "bold" }}>
+              Dashboard Comercial
+            </h1>
+            <p style={{ color: "#6b7280", marginTop: "4px" }}>
+              Ranking comercial, vendas e conversão da equipe
+            </p>
+          </div>
 
           <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
             {usuario?.cargo === "ADMIN_GERAL" && (
@@ -174,39 +205,52 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(180px, 1fr))", gap: "15px", marginBottom: "20px" }}>
-          <Card titulo="Aulas Hoje" valor={dashboard.aulasHoje} cor="#1d4ed8" />
-          <Card titulo="Total Aulas" valor={dashboard.totalAulas} cor="#2563eb" />
-          <Card titulo="Compareceu" valor={dashboard.totalCompareceu} cor="#16a34a" />
-          <Card titulo="Faltou" valor={dashboard.totalFaltou} cor="#dc2626" />
-          <Card titulo="Taxa Comparecimento" valor={`${dashboard.taxaComparecimento}%`} cor="#1e40af" />
-          <Card titulo="Taxa Conversão" valor={`${dashboard.taxaConversao}%`} cor="#16a34a" />
-          <Card titulo="Vendas" valor={dashboard.vendasEfetivadas} cor="#ca8a04" />
-          <Card titulo="Diárias Ativas" valor={dashboard.diariasAtivas} cor="#7c3aed" />
+        <div style={cardsGrid}>
+          <Card icone="📅" titulo="Aulas Hoje" valor={dashboard.aulasHoje} cor="#1d4ed8" />
+          <Card icone="📋" titulo="Total Aulas" valor={dashboard.totalAulas} cor="#2563eb" />
+          <Card icone="✅" titulo="Compareceu" valor={dashboard.totalCompareceu} cor="#16a34a" />
+          <Card icone="❌" titulo="Faltou" valor={dashboard.totalFaltou} cor="#dc2626" />
+          <Card icone="📊" titulo="Comparecimento" valor={`${dashboard.taxaComparecimento}%`} cor="#1e40af" />
+          <Card icone="📈" titulo="Conversão" valor={`${dashboard.taxaConversao}%`} cor="#16a34a" />
+          <Card icone="💰" titulo="Vendas" valor={dashboard.vendasEfetivadas} cor="#ca8a04" />
+          <Card icone="🎟️" titulo="Diárias Ativas" valor={dashboard.diariasAtivas} cor="#7c3aed" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "25px" }}>
-          <GraficoBarras
-            titulo="Aulas agendadas por colaboradora"
+        <div style={rankingGrid}>
+          <TopRanking
+            titulo="🏆 Top Agendamentos"
+            subtitulo="Quem mais marcou aulas no mês"
             dados={dashboard.aulasPorColaboradora}
+            sufixo="aulas"
             cor="#2563eb"
           />
 
-          <GraficoBarras
-            titulo="Vendas por vendedora"
+          <TopRanking
+            titulo="💰 Top Vendas"
+            subtitulo="Quem mais fechou vendas no mês"
             dados={dashboard.vendasPorVendedora}
+            sufixo="vendas"
             cor="#16a34a"
+          />
+
+          <TopRanking
+            titulo="📈 Top Conversão"
+            subtitulo="Vendas geradas ÷ aulas agendadas"
+            dados={topConversao}
+            sufixo="%"
+            cor="#ca8a04"
+            porcentagem
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "25px" }}>
+                <div style={graficoGrid}>
           <div style={bloco}>
             <h2 style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "20px", color: "#dc2626" }}>
               Diárias vencendo hoje
             </h2>
 
             {dashboard.diariasVencendoHoje.length === 0 ? (
-              <p>Nenhuma diária vence hoje.</p>
+              <p style={{ color: "#6b7280" }}>Nenhuma diária vence hoje.</p>
             ) : (
               dashboard.diariasVencendoHoje.map((diaria: any) => (
                 <div key={diaria.id} style={linhaLista}>
@@ -217,19 +261,24 @@ export default function Home() {
           </div>
 
           <GraficoBarras
-            titulo="Modalidades mais solicitadas"
+            titulo="🏋️ Modalidades mais solicitadas"
             dados={dashboard.modalidades}
             cor="#7c3aed"
+            sufixo="aulas"
           />
         </div>
 
         <div style={{ ...bloco, marginTop: "25px" }}>
-          <h2 style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "20px" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "6px" }}>
             Conversão: quem agendou x quem vendeu
           </h2>
 
+          <p style={{ color: "#6b7280", marginBottom: "18px" }}>
+            Mostra quais vendas vieram de aulas marcadas por outra colaboradora.
+          </p>
+
           {dashboard.conversaoAgendouVendeu.length === 0 ? (
-            <p>Nenhuma conversão registrada.</p>
+            <p style={{ color: "#6b7280" }}>Nenhuma conversão registrada.</p>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -241,13 +290,17 @@ export default function Home() {
               </thead>
 
               <tbody>
-                {dashboard.conversaoAgendouVendeu.map((item: any, index: number) => (
-                  <tr key={index}>
-                    <td style={td}>{item.colaboradora}</td>
-                    <td style={td}>{item.vendedora}</td>
-                    <td style={td}>{item.quantidade}</td>
-                  </tr>
-                ))}
+                {[...dashboard.conversaoAgendouVendeu]
+                  .sort((a: any, b: any) => Number(b.quantidade) - Number(a.quantidade))
+                  .map((item: any, index: number) => (
+                    <tr key={index}>
+                      <td style={td}>{item.colaboradora}</td>
+                      <td style={td}>{item.vendedora}</td>
+                      <td style={td}>
+                        <strong>{item.quantidade}</strong>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}
@@ -256,6 +309,15 @@ export default function Home() {
     </main>
   );
 }
+
+const topo = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "25px",
+  gap: "15px",
+  flexWrap: "wrap" as const,
+};
 
 const filtroBox = {
   background: "white",
@@ -279,6 +341,27 @@ const selectFiltro = {
   fontSize: "15px",
 };
 
+const cardsGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
+  gap: "15px",
+  marginBottom: "25px",
+};
+
+const rankingGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(240px, 1fr))",
+  gap: "20px",
+  marginBottom: "25px",
+};
+
+const graficoGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "20px",
+  marginTop: "25px",
+};
+
 const bloco = {
   background: "white",
   borderRadius: "18px",
@@ -296,6 +379,7 @@ const th = {
   padding: "12px",
   borderBottom: "2px solid #111827",
   textAlign: "left" as const,
+  background: "#f9fafb",
 };
 
 const td = {
@@ -303,22 +387,95 @@ const td = {
   borderBottom: "1px solid #e5e7eb",
 };
 
-function Card({ titulo, valor, cor }: any) {
-  return (
-    <div style={{ background: "white", borderRadius: "18px", padding: "16px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", minHeight: "95px" }}>
-      <h2 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "18px" }}>
-        {titulo}
-      </h2>
+function ordenarDados(dados: any) {
+  return Object.entries(dados || {}).sort(
+    (a: any, b: any) => Number(b[1]) - Number(a[1])
+  );
+}
 
-      <p style={{ fontSize: "32px", fontWeight: "bold", color: cor }}>
+function medalha(index: number) {
+  if (index === 0) return "🥇";
+  if (index === 1) return "🥈";
+  if (index === 2) return "🥉";
+  return `${index + 1}º`;
+}
+
+function Card({ icone, titulo, valor, cor }: any) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: "18px",
+        padding: "16px",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+        minHeight: "105px",
+        borderLeft: `6px solid ${cor}`,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ fontSize: "16px", fontWeight: "bold", color: "#374151" }}>
+          {titulo}
+        </h2>
+
+        <span style={{ fontSize: "26px" }}>{icone}</span>
+      </div>
+
+      <p style={{ fontSize: "34px", fontWeight: "bold", color: cor, marginTop: "12px" }}>
         {valor}
       </p>
     </div>
   );
 }
 
-function GraficoBarras({ titulo, dados, cor }: any) {
-  const entradas = Object.entries(dados || {});
+function TopRanking({ titulo, subtitulo, dados, sufixo, cor, porcentagem = false }: any) {
+  const entradas = ordenarDados(dados).slice(0, 5);
+
+  return (
+    <div style={bloco}>
+      <h2 style={{ fontSize: "21px", fontWeight: "bold", marginBottom: "4px" }}>
+        {titulo}
+      </h2>
+
+      <p style={{ color: "#6b7280", marginBottom: "18px", fontSize: "14px" }}>
+        {subtitulo}
+      </p>
+
+      {entradas.length === 0 ? (
+        <p style={{ color: "#6b7280" }}>Nenhum registro encontrado.</p>
+      ) : (
+        entradas.map(([nome, quantidade]: any, index: number) => (
+          <div
+            key={nome}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px",
+              borderRadius: "14px",
+              background: index < 3 ? "#f9fafb" : "white",
+              border: "1px solid #e5e7eb",
+              marginBottom: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "22px", width: "32px" }}>{medalha(index)}</span>
+
+              <strong style={{ color: "#111827" }}>{nome}</strong>
+            </div>
+
+            <strong style={{ color: cor, fontSize: "18px" }}>
+              {quantidade}
+              {porcentagem ? "%" : ` ${sufixo}`}
+            </strong>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function GraficoBarras({ titulo, dados, cor, sufixo }: any) {
+  const entradas = ordenarDados(dados);
   const maior = Math.max(...entradas.map(([, valor]: any) => Number(valor)), 1);
 
   return (
@@ -328,7 +485,7 @@ function GraficoBarras({ titulo, dados, cor }: any) {
       </h2>
 
       {entradas.length === 0 ? (
-        <p>Nenhum registro encontrado.</p>
+        <p style={{ color: "#6b7280" }}>Nenhum registro encontrado.</p>
       ) : (
         entradas.map(([nome, quantidade]: any) => {
           const largura = Math.max((Number(quantidade) / maior) * 100, 8);
@@ -337,11 +494,20 @@ function GraficoBarras({ titulo, dados, cor }: any) {
             <div key={nome} style={{ marginBottom: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
                 <strong>{nome}</strong>
-                <span>{quantidade}</span>
+                <span>
+                  {quantidade} {sufixo}
+                </span>
               </div>
 
               <div style={{ width: "100%", height: "14px", background: "#e5e7eb", borderRadius: "999px" }}>
-                <div style={{ width: `${largura}%`, height: "14px", background: cor, borderRadius: "999px" }} />
+                <div
+                  style={{
+                    width: `${largura}%`,
+                    height: "14px",
+                    background: cor,
+                    borderRadius: "999px",
+                  }}
+                />
               </div>
             </div>
           );

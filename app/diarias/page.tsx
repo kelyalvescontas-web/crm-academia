@@ -47,6 +47,27 @@ export default function DiariasPage() {
     carregarDiarias();
   }, [router]);
 
+  function somenteNumeros(valor: string) {
+    return valor.replace(/\D/g, "");
+  }
+
+  function formatarTelefone(valor: string) {
+    const numeros = somenteNumeros(valor).slice(0, 11);
+
+    if (numeros.length <= 2) return numeros;
+
+    if (numeros.length <= 7) {
+      return `(${numeros.slice(0, 2)})${numeros.slice(2)}`;
+    }
+
+    return `(${numeros.slice(0, 2)})${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+  }
+
+  function telefoneValido(valor: string) {
+    const numeros = somenteNumeros(valor);
+    return numeros.length === 10 || numeros.length === 11;
+  }
+
   function hojeISO() {
     const hoje = new Date();
     return hoje.toISOString().split("T")[0];
@@ -119,6 +140,11 @@ export default function DiariasPage() {
       return;
     }
 
+    if (!telefoneValido(telefone)) {
+      alert("Telefone inválido. Preencha no formato (XX)XXXXX-XXXX.");
+      return;
+    }
+
     setSalvando(true);
 
     const dataFinal = calcularDataFinal(dataInicio, quantidadeDias);
@@ -133,7 +159,7 @@ export default function DiariasPage() {
         body: JSON.stringify({
           id: editandoId,
           nome: nome.trim().toUpperCase(),
-          telefone: telefone.trim(),
+          telefone: formatarTelefone(telefone.trim()),
           cpf: cpf.trim(),
           dataInicio,
           dataFinal,
@@ -163,7 +189,7 @@ export default function DiariasPage() {
   function editarDiaria(diaria: any) {
     setEditandoId(diaria.id);
     setNome(diaria.nome || "");
-    setTelefone(diaria.telefone || "");
+    setTelefone(formatarTelefone(diaria.telefone || ""));
     setCpf(diaria.cpf || "");
     setDataInicio(diaria.dataInicio || "");
     setQuantidadeDias(diaria.quantidadeDias || 1);
@@ -240,7 +266,19 @@ export default function DiariasPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Input label="Nome" value={nome} setValue={setNome} />
-              <Input label="Telefone" value={telefone} setValue={setTelefone} />
+
+              <div>
+                <label className="block mb-2">Telefone</label>
+                <input
+                  type="text"
+                  value={telefone}
+                  maxLength={14}
+                  onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+                  placeholder="(44)99999-9999"
+                  className="w-full border rounded-xl p-3"
+                />
+              </div>
+
               <Input label="CPF" value={cpf} setValue={setCpf} />
 
               <Input
@@ -401,7 +439,7 @@ export default function DiariasPage() {
                 {diariasFiltradas.map((diaria) => (
                   <tr key={diaria.id} className="border-b">
                     <td className="p-3">{diaria.nome}</td>
-                    <td className="p-3">{diaria.telefone}</td>
+                    <td className="p-3">{formatarTelefone(diaria.telefone || "")}</td>
                     <td className="p-3">{formatarData(diaria.dataInicio)}</td>
                     <td className="p-3">{formatarData(diaria.dataFinal)}</td>
                     <td className="p-3">{diaria.quantidadeDias}</td>

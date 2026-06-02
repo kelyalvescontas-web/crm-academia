@@ -25,6 +25,48 @@ function calcularStatus(dataFinal: string) {
   return dataFinal >= hoje ? "ATIVA" : "FINALIZADA";
 }
 
+function dadosUsuario(body: any) {
+  return {
+    usuarioId: body.usuarioId ? Number(body.usuarioId) : null,
+    usuarioNome: body.usuarioNome || "NÃO IDENTIFICADO",
+    usuarioCargo: body.usuarioCargo || "",
+  };
+}
+
+async function registrarHistorico({
+  body,
+  acao,
+  tela,
+  registroId,
+  registroNome,
+  unidadeId,
+  dadosAntes,
+  dadosDepois,
+}: any) {
+  const usuario = dadosUsuario(body);
+
+  await prisma.historico.create({
+    data: {
+      usuarioId: usuario.usuarioId,
+      usuarioNome: usuario.usuarioNome,
+      usuarioCargo: usuario.usuarioCargo,
+
+      acao,
+      tela,
+
+      registroId,
+      registroNome,
+
+      descricao: `${acao} em ${tela}: ${registroNome || ""}`,
+
+      dadosAntes: dadosAntes ? JSON.stringify(dadosAntes) : "",
+      dadosDepois: dadosDepois ? JSON.stringify(dadosDepois) : "",
+
+      unidadeId,
+    },
+  });
+}
+
 export async function GET(req: Request) {
   const unidadeId = getUnidadeId(req);
 
@@ -40,9 +82,13 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   const unidadeId = getUnidadeId(req, body);
+  const usuario = dadosUsuario(body);
 
   if (!unidadeId) {
-    return Response.json({ error: "Unidade não informada" }, { status: 400 });
+    return Response.json(
+      { error: "Unidade não informada" },
+      { status: 400 }
+    );
   }
 
   const quantidadeDias = Number(body.quantidadeDias || 1);
@@ -63,8 +109,26 @@ export async function POST(req: Request) {
       status,
       tipoDiaria: body.tipoDiaria || "PAGA",
 
+      criadoPorId: usuario.usuarioId,
+      criadoPorNome: usuario.usuarioNome,
+
+      alteradoPorId: usuario.usuarioId,
+      alteradoPorNome: usuario.usuarioNome,
+      atualizadoEm: new Date(),
+
       unidadeId,
     },
+  });
+
+  await registrarHistorico({
+    body,
+    acao: "CRIOU",
+    tela: "DIARIAS",
+    registroId: diaria.id,
+    registroNome: diaria.nome,
+    unidadeId,
+    dadosAntes: null,
+    dadosDepois: diaria,
   });
 
   return Response.json(diaria);
@@ -74,6 +138,13 @@ export async function PUT(req: Request) {
   const body = await req.json();
 
   const unidadeId = getUnidadeId(req, body);
+  const usuario = dadosUsuario(body);
+
+  const diariaAntes = await prisma.diaria.findUnique({
+    where: {
+      id: Number(body.id),
+    },
+  });
 
   const quantidadeDias = Number(body.quantidadeDias || 1);
   const dataFinal = calcularDataFinal(body.dataInicio, quantidadeDias);
@@ -94,8 +165,23 @@ export async function PUT(req: Request) {
       status,
       tipoDiaria: body.tipoDiaria || "PAGA",
 
+      alteradoPorId: usuario.usuarioId,
+      alteradoPorNome: usuario.usuarioNome,
+      atualizadoEm: new Date(),
+
       unidadeId,
     },
+  });
+
+  await registrarHistorico({
+    body,
+    acao: "EDITOU",
+    tela: "DIARIAS",
+    registroId: diaria.id,
+    registroNome: diaria.nome,
+    unidadeId,
+    dadosAntes: diariaAntes,
+    dadosDepois: diaria,
   });
 
   return Response.json(diaria);
@@ -104,8 +190,27 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   const body = await req.json();
 
+  const diariaAntes = await prisma.diaria.findUnique({
+    where: {
+      id: Number(body.id),
+    },
+  });
+
   await prisma.diaria.delete({
-    where: { id: Number(body.id) },
+    where: {
+      id: Number(body.id),
+    },
+  });
+
+  await registrarHistorico({
+    body,
+    acao: "EXCLUIU",
+    tela: "DIARIAS",
+    registroId: Number(body.id),
+    registroNome: diariaAntes?.nome || "",
+    unidadeId: diariaAntes?.unidadeId || null,
+    dadosAntes: diariaAntes,
+    dadosDepois: null,
   });
 
   return Response.json({ ok: true });

@@ -50,18 +50,13 @@ async function registrarHistorico({
       usuarioId: usuario.usuarioId,
       usuarioNome: usuario.usuarioNome,
       usuarioCargo: usuario.usuarioCargo,
-
       acao,
       tela,
-
       registroId,
       registroNome,
-
       descricao: `${acao} em ${tela}: ${registroNome || ""}`,
-
       dadosAntes: dadosAntes ? JSON.stringify(dadosAntes) : "",
       dadosDepois: dadosDepois ? JSON.stringify(dadosDepois) : "",
-
       unidadeId,
     },
   });
@@ -71,8 +66,8 @@ export async function GET(req: Request) {
   const unidadeId = getUnidadeId(req);
 
   const diarias = await prisma.diaria.findMany({
-    where: { unidadeId },
-    orderBy: { createdAt: "desc" },
+    where: unidadeId ? { unidadeId } : {},
+    orderBy: [{ dataInicio: "desc" }, { dataFinal: "desc" }, { createdAt: "desc" }],
   });
 
   return Response.json(diarias);
@@ -85,10 +80,7 @@ export async function POST(req: Request) {
   const usuario = dadosUsuario(body);
 
   if (!unidadeId) {
-    return Response.json(
-      { error: "Unidade não informada" },
-      { status: 400 }
-    );
+    return Response.json({ error: "Unidade não informada" }, { status: 400 });
   }
 
   const quantidadeDias = Number(body.quantidadeDias || 1);
@@ -105,17 +97,13 @@ export async function POST(req: Request) {
       quantidadeDias,
       colaboradora: body.colaboradora || "",
       observacoes: body.observacoes || "",
-
       status,
       tipoDiaria: body.tipoDiaria || "PAGA",
-
       criadoPorId: usuario.usuarioId,
       criadoPorNome: usuario.usuarioNome,
-
       alteradoPorId: usuario.usuarioId,
       alteradoPorNome: usuario.usuarioNome,
       atualizadoEm: new Date(),
-
       unidadeId,
     },
   });
@@ -141,9 +129,7 @@ export async function PUT(req: Request) {
   const usuario = dadosUsuario(body);
 
   const diariaAntes = await prisma.diaria.findUnique({
-    where: {
-      id: Number(body.id),
-    },
+    where: { id: Number(body.id) },
   });
 
   const quantidadeDias = Number(body.quantidadeDias || 1);
@@ -161,14 +147,11 @@ export async function PUT(req: Request) {
       quantidadeDias,
       colaboradora: body.colaboradora || "",
       observacoes: body.observacoes || "",
-
       status,
       tipoDiaria: body.tipoDiaria || "PAGA",
-
       alteradoPorId: usuario.usuarioId,
       alteradoPorNome: usuario.usuarioNome,
       atualizadoEm: new Date(),
-
       unidadeId,
     },
   });
@@ -191,15 +174,11 @@ export async function DELETE(req: Request) {
   const body = await req.json();
 
   const diariaAntes = await prisma.diaria.findUnique({
-    where: {
-      id: Number(body.id),
-    },
+    where: { id: Number(body.id) },
   });
 
   await prisma.diaria.delete({
-    where: {
-      id: Number(body.id),
-    },
+    where: { id: Number(body.id) },
   });
 
   await registrarHistorico({

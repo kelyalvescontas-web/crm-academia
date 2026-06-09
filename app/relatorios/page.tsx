@@ -22,6 +22,9 @@ export default function RelatoriosPage() {
 
   const [dataInicial, setDataInicial] = useState("");
   const [dataFinal, setDataFinal] = useState("");
+  const [dataConversaoInicial, setDataConversaoInicial] = useState("");
+  const [dataConversaoFinal, setDataConversaoFinal] = useState("");
+
   const [modalidade, setModalidade] = useState("TODAS");
   const [colaboradora, setColaboradora] = useState("TODAS");
   const [vendedora, setVendedora] = useState("TODAS");
@@ -92,8 +95,18 @@ export default function RelatoriosPage() {
     const params = new URLSearchParams();
 
     params.append("unidadeId", unidadeId);
+
     if (dataInicial) params.append("dataInicial", dataInicial);
     if (dataFinal) params.append("dataFinal", dataFinal);
+
+    if (dataConversaoInicial) {
+      params.append("dataConversaoInicial", dataConversaoInicial);
+    }
+
+    if (dataConversaoFinal) {
+      params.append("dataConversaoFinal", dataConversaoFinal);
+    }
+
     if (modalidade) params.append("modalidade", modalidade);
     if (colaboradora) params.append("colaboradora", colaboradora);
     if (vendedora) params.append("vendedora", vendedora);
@@ -111,6 +124,8 @@ export default function RelatoriosPage() {
   function limparFiltros() {
     setDataInicial("");
     setDataFinal("");
+    setDataConversaoInicial("");
+    setDataConversaoFinal("");
     setModalidade("TODAS");
     setColaboradora("TODAS");
     setVendedora("TODAS");
@@ -180,16 +195,25 @@ export default function RelatoriosPage() {
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
+
     doc.text(
-      `Período: ${dataInicial ? formatarData(dataInicial) : "Início"} até ${
+      `Período da aula: ${dataInicial ? formatarData(dataInicial) : "Início"} até ${
         dataFinal ? formatarData(dataFinal) : "Hoje"
       }`,
       14,
       42
     );
 
+    doc.text(
+      `Período da conversão: ${
+        dataConversaoInicial ? formatarData(dataConversaoInicial) : "Início"
+      } até ${dataConversaoFinal ? formatarData(dataConversaoFinal) : "Hoje"}`,
+      14,
+      49
+    );
+
     autoTable(doc, {
-      startY: 50,
+      startY: 58,
       head: [["Indicador", "Valor"]],
       body: [
         ["Unidade", configuracao.nomeAcademia || "-"],
@@ -284,6 +308,14 @@ export default function RelatoriosPage() {
     const relatorioResumo = [
       {
         Unidade: configuracao.nomeAcademia,
+        "Data Aula Inicial": dataInicial ? formatarData(dataInicial) : "",
+        "Data Aula Final": dataFinal ? formatarData(dataFinal) : "",
+        "Data Conversão Inicial": dataConversaoInicial
+          ? formatarData(dataConversaoInicial)
+          : "",
+        "Data Conversão Final": dataConversaoFinal
+          ? formatarData(dataConversaoFinal)
+          : "",
         "Total Aulas": dados.totalAulas,
         Compareceu: dados.totalCompareceu,
         Faltou: dados.totalFaltou,
@@ -301,9 +333,23 @@ export default function RelatoriosPage() {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(relatorioResumo), "Resumo");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(relatorioAulas), "Aulas");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(relatorioConversao), "Conversão");
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioResumo),
+      "Resumo"
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioAulas),
+      "Aulas"
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(relatorioConversao),
+      "Conversão"
+    );
 
     XLSX.writeFile(workbook, "relatorio_crm_academia.xlsx");
   }
@@ -342,10 +388,35 @@ export default function RelatoriosPage() {
           <h2 className="text-2xl font-bold mb-6">Filtros</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <FiltroData label="Data Inicial" value={dataInicial} setValue={setDataInicial} />
-            <FiltroData label="Data Final" value={dataFinal} setValue={setDataFinal} />
+            <FiltroData
+              label="Data da Aula Inicial"
+              value={dataInicial}
+              setValue={setDataInicial}
+            />
 
-            <FiltroSelect label="Modalidade" value={modalidade} setValue={setModalidade}>
+            <FiltroData
+              label="Data da Aula Final"
+              value={dataFinal}
+              setValue={setDataFinal}
+            />
+
+            <FiltroData
+              label="Data Conversão Inicial"
+              value={dataConversaoInicial}
+              setValue={setDataConversaoInicial}
+            />
+
+            <FiltroData
+              label="Data Conversão Final"
+              value={dataConversaoFinal}
+              setValue={setDataConversaoFinal}
+            />
+
+            <FiltroSelect
+              label="Modalidade"
+              value={modalidade}
+              setValue={setModalidade}
+            >
               <option>TODAS</option>
               <option>MUSCULAÇÃO</option>
               <option>PUMP</option>
@@ -357,14 +428,22 @@ export default function RelatoriosPage() {
               <option>P-COMBAT</option>
             </FiltroSelect>
 
-            <FiltroSelect label="Colaboradora" value={colaboradora} setValue={setColaboradora}>
+            <FiltroSelect
+              label="Colaboradora"
+              value={colaboradora}
+              setValue={setColaboradora}
+            >
               <option>TODAS</option>
               {colaboradorasUnicas.map((nome: any) => (
                 <option key={nome}>{nome}</option>
               ))}
             </FiltroSelect>
 
-            <FiltroSelect label="Vendedora" value={vendedora} setValue={setVendedora}>
+            <FiltroSelect
+              label="Vendedora"
+              value={vendedora}
+              setValue={setVendedora}
+            >
               <option>TODAS</option>
               {vendedorasUnicas.map((nome: any) => (
                 <option key={nome}>{nome}</option>
@@ -380,7 +459,11 @@ export default function RelatoriosPage() {
               <option>OUTRO</option>
             </FiltroSelect>
 
-            <FiltroSelect label="Tipo do aluno" value={tipoAluno} setValue={setTipoAluno}>
+            <FiltroSelect
+              label="Tipo do aluno"
+              value={tipoAluno}
+              setValue={setTipoAluno}
+            >
               <option>TODOS</option>
               <option>NOVO</option>
               <option>RETORNO</option>
@@ -388,11 +471,17 @@ export default function RelatoriosPage() {
             </FiltroSelect>
 
             <div className="flex items-end gap-3">
-              <button onClick={carregarRelatorios} className="bg-blue-900 text-white px-5 py-3 rounded-xl">
+              <button
+                onClick={carregarRelatorios}
+                className="bg-blue-900 text-white px-5 py-3 rounded-xl"
+              >
                 Filtrar
               </button>
 
-              <button onClick={limparFiltros} className="bg-gray-500 text-white px-5 py-3 rounded-xl">
+              <button
+                onClick={limparFiltros}
+                className="bg-gray-500 text-white px-5 py-3 rounded-xl"
+              >
                 Limpar
               </button>
             </div>
@@ -451,7 +540,9 @@ export default function RelatoriosPage() {
                     <td className="p-3 font-bold">{aula.status}</td>
                     <td className="p-3">{aula.planoFechado || "-"}</td>
                     <td className="p-3">{aula.vendedora || "-"}</td>
-                    <td className="p-3">{formatarData(aula.dataConversao) || "-"}</td>
+                    <td className="p-3">
+                      {formatarData(aula.dataConversao) || "-"}
+                    </td>
                     <td className="p-3">{aula.tipoAluno || "-"}</td>
                   </tr>
                 ))}
@@ -476,7 +567,13 @@ function FiltroData({ label, value, setValue }: any) {
   return (
     <div>
       <label>{label}</label>
-      <input type="date" value={value} onChange={(e) => setValue(e.target.value)} className="w-full border p-3 rounded-xl" />
+
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border p-3 rounded-xl"
+      />
     </div>
   );
 }
@@ -485,7 +582,12 @@ function FiltroSelect({ label, value, setValue, children }: any) {
   return (
     <div>
       <label>{label}</label>
-      <select value={value} onChange={(e) => setValue(e.target.value)} className="w-full border p-3 rounded-xl">
+
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border p-3 rounded-xl"
+      >
         {children}
       </select>
     </div>
@@ -516,6 +618,7 @@ function TabelaConversao({ dados }: any) {
             <th className="p-3 text-left">Quantidade</th>
           </tr>
         </thead>
+
         <tbody>
           {dados?.map((item: any, index: number) => (
             <tr key={index} className="border-b">
@@ -542,6 +645,7 @@ function TabelaColaboradoras({ dados }: any) {
             <th className="p-3 text-left">Taxa</th>
           </tr>
         </thead>
+
         <tbody>
           {dados?.map((item: any) => (
             <tr key={item.colaboradora} className="border-b">
@@ -568,6 +672,7 @@ function TabelaVendedoras({ dados }: any) {
             <th className="p-3 text-left">Taxa Geral</th>
           </tr>
         </thead>
+
         <tbody>
           {dados?.map((item: any) => (
             <tr key={item.vendedora} className="border-b">

@@ -29,11 +29,13 @@ export default function HistoricoPage() {
     const usuario = JSON.parse(usuarioSalvo);
     setUsuarioLogado(usuario);
 
-    if (usuario.cargo !== "ADMIN_GERAL") {
-      alert("Acesso permitido apenas para ADMIN GERAL.");
-      router.push("/");
-      return;
-    }
+    const cargo = String(usuario.cargo || "").toUpperCase();
+
+if (cargo !== "ADMIN_GERAL" && cargo !== "ADMIN") {
+  alert("Acesso permitido apenas para ADMIN ou ADMIN GERAL.");
+  router.push("/");
+  return;
+}
 
     carregarUnidades();
     carregarHistorico();

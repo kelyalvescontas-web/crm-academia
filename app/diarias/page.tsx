@@ -236,6 +236,11 @@ export default function DiariasPage() {
       !dataFinalFiltro || diaria.dataInicio <= dataFinalFiltro;
 
     return bateBusca && bateStatus && bateDataInicial && bateDataFinal;
+  }).sort((diariaA, diariaB) => {
+    const dataA = diariaA.dataInicio || diariaA.dataFinal || "";
+    const dataB = diariaB.dataInicio || diariaB.dataFinal || "";
+
+    return dataB.localeCompare(dataA);
   });
 
   return (

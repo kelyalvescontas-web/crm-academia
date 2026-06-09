@@ -28,6 +28,7 @@ export default function AulasPage() {
   const [veio, setVeio] = useState(false);
   const [faltou, setFaltou] = useState(false);
   const [remarcou, setRemarcou] = useState(false);
+  const [cancelou, setCancelou] = useState(false);
   const [posAulaRealizado, setPosAulaRealizado] = useState(false);
   const [vendaEfetivada, setVendaEfetivada] = useState(false);
   const [codigoMatricula, setCodigoMatricula] = useState("");
@@ -132,6 +133,7 @@ export default function AulasPage() {
     setVeio(false);
     setFaltou(false);
     setRemarcou(false);
+    setCancelou(false);
     setPosAulaRealizado(false);
     setVendaEfetivada(false);
     setCodigoMatricula("");
@@ -146,6 +148,7 @@ export default function AulasPage() {
     if (vendaEfetivada) return "VENDA EFETIVADA";
     if (veio) return "COMPARECEU";
     if (faltou) return "FALTOU";
+    if (cancelou) return "CANCELOU";
     if (remarcou) return "REMARCOU";
     return "AGENDADA";
   }
@@ -156,6 +159,7 @@ export default function AulasPage() {
     if (s === "VENDA EFETIVADA") return "#16a34a";
     if (s === "COMPARECEU") return "#2563eb";
     if (s === "FALTOU") return "#dc2626";
+    if (s === "CANCELOU") return "#9333ea";
     if (s === "REMARCOU") return "#dc2626";
 
     return "#d97706";
@@ -194,28 +198,41 @@ export default function AulasPage() {
     setSalvando(true);
 
     try {
+      const usuarioLogado = JSON.parse(
+  localStorage.getItem("usuario") || "{}"
+);
       const dados = {
-        id: editandoId,
-        unidadeId: Number(unidadeId),
-        nomeAluno: nomeAluno.trim().toUpperCase(),
-        telefone: formatarTelefone(telefone.trim()),
-        data,
-        horario,
-        modalidade,
-        colaboradora: colaboradora.trim().toUpperCase(),
-        observacoes: observacoes.trim().toUpperCase(),
-        veio,
-        faltou,
-        remarcou,
-        posAulaRealizado,
-        vendaEfetivada,
-        codigoMatricula: codigoMatricula.trim(),
-        status: statusAtual(),
-        planoFechado,
-        vendedora: vendedora.trim().toUpperCase(),
-        dataConversao,
-        tipoAluno,
-      };
+  usuarioId: usuarioLogado.id,
+  usuarioNome: usuarioLogado.nome,
+  usuarioCargo: usuarioLogado.cargo,
+
+  id: editandoId,
+  unidadeId: Number(unidadeId),
+
+  nomeAluno: nomeAluno.trim().toUpperCase(),
+  telefone: formatarTelefone(telefone.trim()),
+  data,
+  horario,
+  modalidade,
+  colaboradora: colaboradora.trim().toUpperCase(),
+  observacoes: observacoes.trim().toUpperCase(),
+
+  veio,
+  faltou,
+  remarcou,
+  cancelou,
+  posAulaRealizado,
+  vendaEfetivada,
+
+  codigoMatricula: codigoMatricula.trim(),
+
+  status: statusAtual(),
+
+  planoFechado,
+  vendedora: vendedora.trim().toUpperCase(),
+  dataConversao,
+  tipoAluno,
+};
 
       const response = await fetch("/api/aulas", {
         method: editandoId ? "PUT" : "POST",
@@ -252,6 +269,7 @@ export default function AulasPage() {
     setVeio(Boolean(aula.veio));
     setFaltou(Boolean(aula.faltou));
     setRemarcou(Boolean(aula.remarcou));
+    setCancelou(Boolean(aula.cancelou) || String(aula.status || "").toUpperCase() === "CANCELOU");
     setPosAulaRealizado(Boolean(aula.posAulaRealizado));
     setVendaEfetivada(Boolean(aula.vendaEfetivada));
     setCodigoMatricula(aula.codigoMatricula || "");
@@ -265,18 +283,28 @@ export default function AulasPage() {
   }
 
   async function excluirAula(id: number) {
-    if (!confirm("Deseja excluir esta aula?")) return;
+  if (!confirm("Deseja excluir esta aula?")) return;
 
-    await fetch("/api/aulas", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id }),
-    });
+  const usuarioLogado = JSON.parse(
+    localStorage.getItem("usuario") || "{}"
+  );
 
-    await carregarAulas();
-  }
+  await fetch("/api/aulas", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id,
+
+      usuarioId: usuarioLogado.id,
+      usuarioNome: usuarioLogado.nome,
+      usuarioCargo: usuarioLogado.cargo,
+    }),
+  });
+
+  await carregarAulas();
+}
 
   function primeiroNome(nome: string) {
     if (!nome) return "";
@@ -362,6 +390,16 @@ Queremos remarcar para você conhecer a academia e já deixar um treino personal
 Vamos agendar ainda essa semana?`;
     }
 
+    if (tipo === "cancelou") {
+      mensagem = `Olá, ${aluno}! Tudo bem?
+
+Aqui é a ${colab} da Prix.
+
+Vi que você cancelou sua aula experimental que estava agendada. Que tal remarcarmos para hoje no mesmo horário? Será um prazer receber você!
+
+Aguardo sua resposta.`;
+    }
+
     window.open(
       `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`,
       "_blank"
@@ -400,6 +438,11 @@ Vamos agendar ainda essa semana?`;
     const bateDataFinal = !dataFinalFiltro || aula.data <= dataFinalFiltro;
 
     return bateBusca && bateColaboradora && bateDataInicial && bateDataFinal;
+  }).sort((aulaA, aulaB) => {
+    const dataA = `${aulaA.data || ""} ${aulaA.horario || "00:00"}`;
+    const dataB = `${aulaB.data || ""} ${aulaB.horario || "00:00"}`;
+
+    return dataB.localeCompare(dataA);
   });
 
   return (
@@ -445,6 +488,10 @@ Vamos agendar ainda essa semana?`;
 
               <button type="button" onClick={() => abrirWhatsApp("nao")} className="border-4 border-red-600 text-red-600 px-4 py-2 rounded-xl font-bold">
                 NÃO COMPARECEU
+              </button>
+
+              <button type="button" onClick={() => abrirWhatsApp("cancelou")} className="border-4 border-purple-600 text-purple-600 px-4 py-2 rounded-xl font-bold">
+                CANCELOU
               </button>
             </div>
 
@@ -504,9 +551,10 @@ Vamos agendar ainda essa semana?`;
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-5">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mt-5">
               <Check label="Veio" checked={veio} setChecked={setVeio} />
               <Check label="Faltou" checked={faltou} setChecked={setFaltou} />
+              <Check label="Cancelou" checked={cancelou} setChecked={setCancelou} />
               <Check label="Remarcou" checked={remarcou} setChecked={setRemarcou} />
               <Check label="Contato pós aula" checked={posAulaRealizado} setChecked={setPosAulaRealizado} />
               <Check label="Venda efetivada" checked={vendaEfetivada} setChecked={setVendaEfetivada} />

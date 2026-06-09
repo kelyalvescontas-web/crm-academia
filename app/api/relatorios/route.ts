@@ -13,6 +13,8 @@ export async function GET(req: Request) {
   const unidadeId = Number(searchParams.get("unidadeId"));
   const dataInicial = searchParams.get("dataInicial");
   const dataFinal = searchParams.get("dataFinal");
+  const dataConversaoInicial = searchParams.get("dataConversaoInicial");
+const dataConversaoFinal = searchParams.get("dataConversaoFinal");
   const modalidade = searchParams.get("modalidade");
   const colaboradoraFiltro = searchParams.get("colaboradora");
   const vendedoraFiltro = searchParams.get("vendedora");
@@ -38,7 +40,19 @@ export async function GET(req: Request) {
     aulas = aulas.filter((aula) => aula.data <= dataFinal);
     diarias = diarias.filter((diaria) => diaria.dataInicio <= dataFinal);
   }
+if (dataConversaoInicial) {
+  aulas = aulas.filter((aula) => {
+    if (!aula.dataConversao) return false;
+    return aula.dataConversao >= dataConversaoInicial;
+  });
+}
 
+if (dataConversaoFinal) {
+  aulas = aulas.filter((aula) => {
+    if (!aula.dataConversao) return false;
+    return aula.dataConversao <= dataConversaoFinal;
+  });
+}
   if (modalidade && modalidade !== "TODAS") {
     aulas = aulas.filter((aula) => aula.modalidade === modalidade);
   }

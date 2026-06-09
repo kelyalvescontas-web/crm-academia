@@ -45,13 +45,33 @@ async function registrarHistorico({
   });
 }
 
-function removerSenha(usuario: any) {
+function usuarioSeguro(usuario: any) {
   if (!usuario) return usuario;
 
   const copia = { ...usuario };
+
   delete copia.senha;
 
-  return copia;
+  const pin = copia.pinMetas;
+  delete copia.pinMetas;
+
+  return {
+    ...copia,
+    temPinMetas: Boolean(pin),
+  };
+}
+
+function validarCargoUsuarioLogado(cargo: string) {
+  const c = String(cargo || "").toUpperCase();
+  return c === "ADMIN_GERAL" || c === "ADMIN";
+}
+
+function validarPin(pin: any) {
+  const texto = String(pin || "").trim();
+
+  if (!texto) return true;
+
+  return /^\d{4}$/.test(texto);
 }
 
 export async function GET() {
@@ -61,7 +81,7 @@ export async function GET() {
       include: { unidade: true },
     });
 
-    return Response.json(usuarios);
+    return Response.json(usuarios.map(usuarioSeguro));
   } catch (error) {
     console.log(error);
     return Response.json({ error: "Erro ao buscar usuários" }, { status: 500 });
@@ -71,6 +91,27 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    if (!validarCargoUsuarioLogado(body.usuarioCargo)) {
+      return Response.json(
+        { error: "Você não tem permissão para criar usuários" },
+        { status: 403 }
+      );
+    }
+
+    if (!body.nome || !body.email || !body.senha || !body.unidadeId) {
+      return Response.json(
+        { error: "Preencha nome, email, senha e unidade" },
+        { status: 400 }
+      );
+    }
+
+    if (!validarPin(body.pinMetas)) {
+      return Response.json(
+        { error: "O PIN das Metas deve ter exatamente 4 números" },
+        { status: 400 }
+      );
+    }
 
     const existe = await prisma.usuario.findUnique({
       where: { email: body.email },
@@ -82,14 +123,23 @@ export async function POST(req: Request) {
 
     const senhaHash = await bcrypt.hash(body.senha, 10);
 
+    const data: any = {
+      nome: body.nome,
+      email: body.email,
+      senha: senhaHash,
+      cargo: body.cargo,
+      unidadeId: Number(body.unidadeId),
+      fotoUrl: body.fotoUrl || "",
+      temaNome: body.temaNome || "AZUL",
+      temaCor: body.temaCor || "#1e3a8a",
+    };
+
+    if (body.pinMetas) {
+      data.pinMetas = await bcrypt.hash(String(body.pinMetas), 10);
+    }
+
     const usuario = await prisma.usuario.create({
-      data: {
-        nome: body.nome,
-        email: body.email,
-        senha: senhaHash,
-        cargo: body.cargo,
-        unidadeId: Number(body.unidadeId),
-      },
+      data,
       include: { unidade: true },
     });
 
@@ -101,10 +151,10 @@ export async function POST(req: Request) {
       registroNome: usuario.nome,
       unidadeId: usuario.unidadeId,
       dadosAntes: null,
-      dadosDepois: removerSenha(usuario),
+      dadosDepois: usuarioSeguro(usuario),
     });
 
-    return Response.json(usuario);
+    return Response.json(usuarioSeguro(usuario));
   } catch (error) {
     console.log(error);
     return Response.json({ error: "Erro ao criar usuário" }, { status: 500 });
@@ -115,20 +165,45 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
 
+    if (!validarCargoUsuarioLogado(body.usuarioCargo)) {
+      return Response.json(
+        { error: "Você não tem permissão para editar usuários" },
+        { status: 403 }
+      );
+    }
+
+    if (!validarPin(body.pinMetas)) {
+      return Response.json(
+        { error: "O PIN das Metas deve ter exatamente 4 números" },
+        { status: 400 }
+      );
+    }
+
     const usuarioAntes = await prisma.usuario.findUnique({
       where: { id: Number(body.id) },
       include: { unidade: true },
     });
+
+    if (!usuarioAntes) {
+      return Response.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
 
     const data: any = {
       nome: body.nome,
       email: body.email,
       cargo: body.cargo,
       unidadeId: Number(body.unidadeId),
+      fotoUrl: body.fotoUrl || "",
+      temaNome: body.temaNome || "AZUL",
+      temaCor: body.temaCor || "#1e3a8a",
     };
 
     if (body.senha) {
       data.senha = await bcrypt.hash(body.senha, 10);
+    }
+
+    if (body.pinMetas) {
+      data.pinMetas = await bcrypt.hash(String(body.pinMetas), 10);
     }
 
     const usuario = await prisma.usuario.update({
@@ -144,11 +219,11 @@ export async function PUT(req: Request) {
       registroId: usuario.id,
       registroNome: usuario.nome,
       unidadeId: usuario.unidadeId,
-      dadosAntes: removerSenha(usuarioAntes),
-      dadosDepois: removerSenha(usuario),
+      dadosAntes: usuarioSeguro(usuarioAntes),
+      dadosDepois: usuarioSeguro(usuario),
     });
 
-    return Response.json(usuario);
+    return Response.json(usuarioSeguro(usuario));
   } catch (error) {
     console.log(error);
     return Response.json({ error: "Erro ao editar usuário" }, { status: 500 });
@@ -158,6 +233,13 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const body = await req.json();
+
+    if (String(body.usuarioCargo || "").toUpperCase() !== "ADMIN_GERAL") {
+      return Response.json(
+        { error: "Somente ADMIN_GERAL pode excluir usuários" },
+        { status: 403 }
+      );
+    }
 
     const usuarioAntes = await prisma.usuario.findUnique({
       where: { id: Number(body.id) },
@@ -175,7 +257,7 @@ export async function DELETE(req: Request) {
       registroId: Number(body.id),
       registroNome: usuarioAntes?.nome || "",
       unidadeId: usuarioAntes?.unidadeId || null,
-      dadosAntes: removerSenha(usuarioAntes),
+      dadosAntes: usuarioSeguro(usuarioAntes),
       dadosDepois: null,
     });
 

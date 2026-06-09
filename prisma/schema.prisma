@@ -18,6 +18,9 @@ model Unidade {
   diarias        Diaria[]
   configuracoes  Configuracao[]
   historicos     Historico[]
+  contratosMeta  ContratoMeta[]
+  configuracoesMeta ConfiguracaoMeta[]
+  metasPessoais     MetaPessoal[]
 }
 
 model Usuario {
@@ -26,6 +29,11 @@ model Usuario {
   email     String   @unique
   senha     String
   cargo     String   @default("ADMIN")
+
+  pinMetas  String?
+  fotoUrl   String?
+  temaNome  String?  @default("AZUL")
+  temaCor   String?  @default("#1e3a8a")
 
   unidadeId Int?
   unidade   Unidade? @relation(fields: [unidadeId], references: [id])
@@ -47,6 +55,7 @@ model Aula {
   veio               Boolean  @default(false)
   faltou             Boolean  @default(false)
   remarcou           Boolean  @default(false)
+  cancelou           Boolean  @default(false)
   posAulaRealizado   Boolean  @default(false)
   vendaEfetivada     Boolean  @default(false)
   codigoMatricula    String?
@@ -107,6 +116,7 @@ model Configuracao {
   mensagemLembrete        String?
   mensagemPosAula         String?
   mensagemNaoCompareceu   String?
+  mensagemCancelou        String?
   mensagemDiaria          String?
 
   unidadeId     Int?
@@ -135,4 +145,101 @@ model Historico {
   unidade         Unidade? @relation(fields: [unidadeId], references: [id])
 
   createdAt       DateTime @default(now())
+}
+
+model ContratoMeta {
+  id                    Int      @id @default(autoincrement())
+
+  matricula             String?
+  nomeAluno             String
+  vendedora             String
+
+  plano                 String
+  tipoContrato          String
+  permanencia           String   @default("MENSAL")
+  dataVenda             String
+
+  valorPrimeiraParcela  Float?
+
+  convenio              Boolean  @default(false)
+  nomeConvenio          String?
+
+  contratoDividido      Boolean  @default(false)
+  quantidadeMeios       Int      @default(0)
+  divididoCom           String?
+
+  observacao            String?
+
+  criadoPorId           Int?
+  criadoPorNome         String?
+  alteradoPorId         Int?
+  alteradoPorNome       String?
+  atualizadoEm          DateTime?
+
+  unidadeId             Int?
+  unidade               Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt             DateTime @default(now())
+}
+
+model ConfiguracaoMeta {
+  id          Int      @id @default(autoincrement())
+  mes         String   @default("2026-06")
+
+  meta1Qtd    Int      @default(30)
+  meta1Valor  Float    @default(300)
+
+  meta2Qtd    Int      @default(40)
+  meta2Valor  Float    @default(500)
+
+  meta3Qtd    Int      @default(50)
+  meta3Valor  Float    @default(800)
+
+  meta4Qtd    Int      @default(60)
+  meta4Valor  Float    @default(1200)
+
+  mensagemMotivacional String?
+  mensagemCrista       String?
+
+  unidadeId   Int?
+  unidade     Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  metaEmpresa Int @default(60)
+
+  campanhaTitulo String?
+  campanhaPremio String?
+  campanhaRegra String?
+  campanhaUnidade String?
+campanhaProgresso Int @default(0)
+campanhaObjetivo Int @default(2)
+campanhaAtiva Boolean @default(true)
+campanhaFuncionarias String?
+
+comunicado1Titulo String?
+comunicado1Mensagem String?
+comunicado2Titulo String?
+comunicado2Mensagem String?
+comunicado3Titulo String?
+comunicado3Mensagem String?
+
+lancamentoTitulo String?
+lancamentoMensagem String?
+}
+
+model MetaPessoal {
+  id          Int      @id @default(autoincrement())
+
+  usuarioId   Int?
+  usuarioNome String
+
+  mes         String
+  meta        Int      @default(40)
+
+  unidadeId   Int?
+  unidade     Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+function normalizarCargo(cargo: any) {
+  return String(cargo || "").toUpperCase().trim().replace(/\s+/g, "_");
+}
+
 function dadosUsuario(body: any) {
   return {
     usuarioId: body.usuarioId ? Number(body.usuarioId) : null,
@@ -61,8 +65,8 @@ function usuarioSeguro(usuario: any) {
   };
 }
 
-function validarCargoUsuarioLogado(cargo: string) {
-  const c = String(cargo || "").toUpperCase();
+function podeGerenciarUsuarios(cargo: string) {
+  const c = normalizarCargo(cargo);
   return c === "ADMIN_GERAL" || c === "ADMIN";
 }
 
@@ -74,9 +78,22 @@ function validarPin(pin: any) {
   return /^\d{4}$/.test(texto);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+
+    const usuarioId = searchParams.get("usuarioId");
+    const usuarioCargo = searchParams.get("usuarioCargo");
+
+    const cargo = normalizarCargo(usuarioCargo);
+
+    const where =
+      usuarioId && !podeGerenciarUsuarios(cargo)
+        ? { id: Number(usuarioId) }
+        : {};
+
     const usuarios = await prisma.usuario.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: { unidade: true },
     });
@@ -92,7 +109,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!validarCargoUsuarioLogado(body.usuarioCargo)) {
+    if (!podeGerenciarUsuarios(body.usuarioCargo)) {
       return Response.json(
         { error: "Você não tem permissão para criar usuários" },
         { status: 403 }
@@ -165,9 +182,15 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
 
-    if (!validarCargoUsuarioLogado(body.usuarioCargo)) {
+    const cargoLogado = normalizarCargo(body.usuarioCargo);
+    const usuarioIdLogado = body.usuarioId ? Number(body.usuarioId) : null;
+    const editandoId = Number(body.id);
+    const editandoProprio = Boolean(usuarioIdLogado && editandoId === usuarioIdLogado);
+    const adminPodeGerenciar = podeGerenciarUsuarios(cargoLogado);
+
+    if (!adminPodeGerenciar && !editandoProprio) {
       return Response.json(
-        { error: "Você não tem permissão para editar usuários" },
+        { error: "Você só pode editar o seu próprio usuário" },
         { status: 403 }
       );
     }
@@ -180,7 +203,7 @@ export async function PUT(req: Request) {
     }
 
     const usuarioAntes = await prisma.usuario.findUnique({
-      where: { id: Number(body.id) },
+      where: { id: editandoId },
       include: { unidade: true },
     });
 
@@ -188,14 +211,20 @@ export async function PUT(req: Request) {
       return Response.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
+    // Colaboradora/usuário comum pode alterar dados pessoais, mas não cargo nem unidade.
     const data: any = {
-      nome: body.nome,
-      email: body.email,
-      cargo: body.cargo,
-      unidadeId: Number(body.unidadeId),
-      fotoUrl: body.fotoUrl || "",
-      temaNome: body.temaNome || "AZUL",
-      temaCor: body.temaCor || "#1e3a8a",
+      nome: body.nome || usuarioAntes.nome,
+      email: body.email || usuarioAntes.email,
+      cargo: adminPodeGerenciar ? body.cargo : usuarioAntes.cargo,
+      unidadeId: adminPodeGerenciar
+        ? Number(body.unidadeId || usuarioAntes.unidadeId)
+        : usuarioAntes.unidadeId,
+      fotoUrl:
+        body.fotoUrl !== undefined && body.fotoUrl !== null
+          ? body.fotoUrl
+          : usuarioAntes.fotoUrl || "",
+      temaNome: body.temaNome || usuarioAntes.temaNome || "AZUL",
+      temaCor: body.temaCor || usuarioAntes.temaCor || "#1e3a8a",
     };
 
     if (body.senha) {
@@ -207,7 +236,7 @@ export async function PUT(req: Request) {
     }
 
     const usuario = await prisma.usuario.update({
-      where: { id: Number(body.id) },
+      where: { id: editandoId },
       data,
       include: { unidade: true },
     });
@@ -234,7 +263,7 @@ export async function DELETE(req: Request) {
   try {
     const body = await req.json();
 
-    if (String(body.usuarioCargo || "").toUpperCase() !== "ADMIN_GERAL") {
+    if (normalizarCargo(body.usuarioCargo) !== "ADMIN_GERAL") {
       return Response.json(
         { error: "Somente ADMIN_GERAL pode excluir usuários" },
         { status: 403 }

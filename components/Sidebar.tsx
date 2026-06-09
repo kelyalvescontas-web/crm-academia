@@ -31,6 +31,19 @@ export default function Sidebar() {
   const [logoKedialErro, setLogoKedialErro] = useState(false);
 
   useEffect(() => {
+    carregarUsuarioLocal();
+    carregarConfiguracoes();
+
+    window.addEventListener("unidadeAlterada", carregarConfiguracoes);
+    window.addEventListener("usuarioAtualizado", carregarUsuarioLocal);
+
+    return () => {
+      window.removeEventListener("unidadeAlterada", carregarConfiguracoes);
+      window.removeEventListener("usuarioAtualizado", carregarUsuarioLocal);
+    };
+  }, []);
+
+  function carregarUsuarioLocal() {
     const usuarioSalvo = localStorage.getItem("usuario");
 
     if (usuarioSalvo) {
@@ -41,15 +54,7 @@ export default function Sidebar() {
         setCorSistema(user.temaCor);
       }
     }
-
-    carregarConfiguracoes();
-
-    window.addEventListener("unidadeAlterada", carregarConfiguracoes);
-
-    return () => {
-      window.removeEventListener("unidadeAlterada", carregarConfiguracoes);
-    };
-  }, []);
+  }
 
   async function carregarConfiguracoes() {
     const usuarioSalvo = localStorage.getItem("usuario");
@@ -92,16 +97,16 @@ export default function Sidebar() {
 
   const cargo = String(usuario?.cargo || "").toUpperCase();
 
-const menuAdmin = [
-  { nome: "Dashboard", rota: "/", icone: MdDashboard },
-  { nome: "Aulas Agendadas", rota: "/aulas", icone: MdEventNote },
-  { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
-  { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
-  { nome: "Metas", rota: "/metas", icone: FaBullseye },
-  { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
-  { nome: "Relatórios", rota: "/relatorios", icone: FaChartLine },
-  { nome: "Histórico", rota: "/historico", icone: MdHistory },
-];
+  const menuAdmin = [
+    { nome: "Dashboard", rota: "/", icone: MdDashboard },
+    { nome: "Aulas Agendadas", rota: "/aulas", icone: MdEventNote },
+    { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
+    { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
+    { nome: "Metas", rota: "/metas", icone: FaBullseye },
+    { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
+    { nome: "Relatórios", rota: "/relatorios", icone: FaChartLine },
+    { nome: "Histórico", rota: "/historico", icone: MdHistory },
+  ];
 
   const menuAdminGeral = [
     { nome: "Dashboard", rota: "/", icone: MdDashboard },
@@ -121,6 +126,7 @@ const menuAdmin = [
     { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
     { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
     { nome: "Metas", rota: "/metas", icone: FaBullseye },
+    { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
   ];
 
   const menuInstrutor = [

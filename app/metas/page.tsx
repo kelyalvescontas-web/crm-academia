@@ -352,12 +352,18 @@ export default function MetasPage() {
     0
   );
 
-  const premiacaoAtualValor = Number(
-    dados?.premiacaoPessoal?.atual?.valor || dados?.premiacaoEmpresa?.atual?.valor || 0
-  );
+  // Premiação individual: só mostra valor quando a própria vendedora completa uma meta.
+  // Não usa a premiação da empresa como fallback, para não aparecer ganho sem a meta pessoal concluída.
+  const premiacaoAtualValor = Number(dados?.premiacaoPessoal?.atual?.valor || 0);
 
+  const campanhaExtraProgresso = Number(dados?.campanhaExtra?.progresso || 0);
+  const campanhaExtraObjetivo = Number(dados?.campanhaExtra?.objetivo || 0);
+
+  // Campanha extra só entra nos ganhos quando o objetivo da campanha foi concluído.
   const campanhaExtraValor =
-    dados?.campanhaExtra?.ativa === true
+    dados?.campanhaExtra?.ativa === true &&
+    campanhaExtraObjetivo > 0 &&
+    campanhaExtraProgresso >= campanhaExtraObjetivo
       ? Number(dados?.campanhaExtra?.premioValor || dados?.campanhaExtra?.valor || 0)
       : 0;
 

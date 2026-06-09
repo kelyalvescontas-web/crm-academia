@@ -31,6 +31,7 @@ export default function ContratosPage() {
   const [divididoCom, setDivididoCom] = useState("");
 
   const [observacao, setObservacao] = useState("");
+  const [salvando, setSalvando] = useState(false);
  
 
   useEffect(() => {
@@ -130,6 +131,8 @@ async function carregarContratos(userParam?: any) {
 }
 
   async function salvarContrato() {
+    if (salvando) return;
+
     if (!nomeAluno.trim()) {
       alert("Informe o nome do aluno");
       return;
@@ -145,43 +148,51 @@ async function carregarContratos(userParam?: any) {
         ? localStorage.getItem("unidadeSelecionadaId")
         : usuario.unidadeId;
 
-    const response = await fetch("/api/metas/contratos", {
-  method: contratoEditandoId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: contratoEditandoId,
-        matricula,
-        nomeAluno,
-        vendedora,
-        plano,
-        tipoContrato,
-        permanencia,
-        dataVenda,
-        valorPrimeiraParcela,
-        convenio,
-        nomeConvenio,
-        contratoDividido,
-        quantidadeMeios: 0,
-        divididoCom,
-        observacao,
-        unidadeId,
-        usuarioId: usuario.id,
-        usuarioNome: usuario.nome,
-        usuarioCargo: usuario.cargo,
-      }),
-    });
+    try {
+      setSalvando(true);
 
-    if (!response.ok) {
-      alert("Erro ao salvar contrato");
-      return;
+      const response = await fetch("/api/metas/contratos", {
+        method: contratoEditandoId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: contratoEditandoId,
+          matricula,
+          nomeAluno,
+          vendedora,
+          plano,
+          tipoContrato,
+          permanencia,
+          dataVenda,
+          valorPrimeiraParcela,
+          convenio,
+          nomeConvenio,
+          contratoDividido,
+          quantidadeMeios: 0,
+          divididoCom,
+          observacao,
+          unidadeId,
+          usuarioId: usuario.id,
+          usuarioNome: usuario.nome,
+          usuarioCargo: usuario.cargo,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao salvar contrato");
+        return;
+      }
+
+      limparFormulario();
+      setContratoEditandoId(null);
+      await carregarContratos();
+      alert("Contrato salvo com sucesso!");
+    } finally {
+      setSalvando(false);
     }
-
-    limparFormulario();
-    carregarContratos();
-    alert("Contrato salvo com sucesso!");
-    setContratoEditandoId(null);
   }
 
   function limparFormulario() {

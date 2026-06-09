@@ -16,16 +16,13 @@ function usuarioLogado(body: any = {}) {
   };
 }
 
-function podeVerTodos(cargo: string) {
-  const c = String(cargo || "").toUpperCase();
+function normalizarCargo(cargo: any) {
+  return String(cargo || "").toUpperCase().trim().replace(/\s+/g, "_");
+}
 
-  return (
-    c === "ADMIN" ||
-    c === "ADMIN_GERAL" ||
-    c === "COMERCIAL" ||
-    c === "GERENTE" ||
-    c === "GERENCIAL"
-  );
+function podeVerTodos(cargo: string) {
+  // Regra principal: somente ADMIN_GERAL vê todos os contratos da unidade.
+  return normalizarCargo(cargo) === "ADMIN_GERAL";
 }
 
 export async function GET(req: Request) {
@@ -54,17 +51,27 @@ export async function GET(req: Request) {
       unidadeId,
     };
 
-   if (!podeVerTodos(usuarioCargo)) {
-  where.OR = [
-    {
-      vendedora: usuarioNome,
-    },
-    {
-      contratoDividido: true,
-      divididoCom: usuarioNome,
-    },
-  ];
-}
+    // ADMIN, COLABORADORA e demais cargos veem somente:
+    // 1) contratos em que são vendedora
+    // 2) contratos divididos com elas
+    // Comparação insensível a maiúsculas/minúsculas para não esconder contratos próprios.
+    if (!podeVerTodos(usuarioCargo)) {
+      where.OR = [
+        {
+          vendedora: {
+            equals: usuarioNome,
+            mode: "insensitive",
+          },
+        },
+        {
+          contratoDividido: true,
+          divididoCom: {
+            equals: usuarioNome,
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
 
     if (dataInicial || dataFinal) {
       where.dataVenda = {};
@@ -79,7 +86,10 @@ export async function GET(req: Request) {
     }
 
     if (vendedora && vendedora !== "TODAS") {
-      where.vendedora = vendedora;
+      where.vendedora = {
+        equals: vendedora,
+        mode: "insensitive",
+      };
     }
 
     if (plano && plano !== "TODOS") {
@@ -99,9 +109,10 @@ export async function GET(req: Request) {
       include: {
         unidade: true,
       },
-      orderBy: {
-        dataVenda: "desc",
-      },
+      orderBy: [
+        { dataVenda: "desc" },
+        { createdAt: "desc" },
+      ],
     });
 
     return Response.json(contratos);
@@ -128,16 +139,55 @@ export async function POST(req: Request) {
       );
     }
 
+    const matricula = String(body.matricula || "").trim();
+    const nomeAluno = String(body.nomeAluno || "").trim().toUpperCase();
+    const vendedora = String(body.vendedora || "").trim().toUpperCase();
+    const dataVenda = body.dataVenda || "";
+
+    if (!nomeAluno) {
+      return Response.json(
+        { error: "Informe o nome do aluno" },
+        { status: 400 }
+      );
+    }
+
+    // Proteção extra contra duplicidade por duplo clique:
+    // se já existir um contrato igual criado nos últimos 2 minutos, devolve o existente.
+    const doisMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+
+    const duplicado = await prisma.contratoMeta.findFirst({
+      where: {
+        unidadeId,
+        matricula,
+        nomeAluno,
+        vendedora,
+        dataVenda,
+        plano: body.plano || "",
+        tipoContrato: body.tipoContrato || "",
+        permanencia: body.permanencia || "MENSAL",
+        createdAt: {
+          gte: doisMinutosAtras,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (duplicado) {
+      return Response.json(duplicado);
+    }
+
     const contrato = await prisma.contratoMeta.create({
       data: {
-        matricula: body.matricula || "",
-        nomeAluno: String(body.nomeAluno || "").trim().toUpperCase(),
-        vendedora: String(body.vendedora || "").trim().toUpperCase(),
+        matricula,
+        nomeAluno,
+        vendedora,
 
         plano: body.plano || "",
         tipoContrato: body.tipoContrato || "",
         permanencia: body.permanencia || "MENSAL",
-        dataVenda: body.dataVenda || "",
+        dataVenda,
 
         valorPrimeiraParcela:
           body.valorPrimeiraParcela !== "" &&

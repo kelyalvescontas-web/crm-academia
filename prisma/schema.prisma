@@ -9,31 +9,82 @@ datasource db {
 }
 
 model Unidade {
-  id             Int             @id @default(autoincrement())
-  nome           String
-  createdAt      DateTime        @default(now())
+  id        Int      @id @default(autoincrement())
+  nome      String
+  createdAt DateTime @default(now())
 
-  usuarios       Usuario[]
-  aulas          Aula[]
-  diarias        Diaria[]
-  configuracoes  Configuracao[]
-  historicos     Historico[]
-  contratosMeta  ContratoMeta[]
-  configuracoesMeta ConfiguracaoMeta[]
-  metasPessoais     MetaPessoal[]
+  usuarios                     Usuario[]
+  aulas                        Aula[]
+  diarias                      Diaria[]
+  configuracoes                Configuracao[]
+  historicos                   Historico[]
+  contratosMeta                ContratoMeta[]
+  configuracoesMeta            ConfiguracaoMeta[]
+  metasPessoais                MetaPessoal[]
+  agendaNutricionista          AgendaNutricionista[]
+  agendaNutricionistaHorarios  AgendaNutricionistaHorario[]
+  agendaNutricionistaBloqueios AgendaNutricionistaBloqueio[]
+  agendaNutricionistaAvisos    AgendaNutricionistaAviso[]
+
+  agendaPessoalItens AgendaPessoal[]
+  modalidades        Modalidade[]
 }
 
 model Usuario {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  email     String   @unique
-  senha     String
-  cargo     String   @default("ADMIN")
+  id    Int    @id @default(autoincrement())
+  nome  String
+  email String @unique
+  senha String
+  cargo String @default("ADMIN")
 
-  pinMetas  String?
-  fotoUrl   String?
-  temaNome  String?  @default("AZUL")
-  temaCor   String?  @default("#1e3a8a")
+  pinMetas String?
+  fotoUrl  String?
+  temaNome String? @default("AZUL")
+  temaCor  String? @default("#1e3a8a")
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  agendaNutricionistaCriadas AgendaNutricionista[]         @relation("AgendaCriadaPor")
+  mensagensNutricionista     AgendaNutricionistaMensagem[]
+
+  agendaPessoalCriadas           AgendaPessoal[]                 @relation("AgendaPessoalCriadaPor")
+  agendaPessoalResponsavel       AgendaPessoal[]                 @relation("AgendaPessoalResponsavel")
+  agendaPessoalNotificacoes      AgendaPessoalNotificacao[]
+  agendaPessoalCompartilhamentos AgendaPessoalCompartilhamento[]
+
+  createdAt DateTime @default(now())
+}
+
+model Aula {
+  id           Int     @id @default(autoincrement())
+  nomeAluno    String
+  telefone     String
+  data         String
+  horario      String
+  modalidade   String
+  status       String  @default("AGENDADA")
+  observacoes  String?
+  colaboradora String
+
+  veio             Boolean @default(false)
+  faltou           Boolean @default(false)
+  remarcou         Boolean @default(false)
+  cancelou         Boolean @default(false)
+  posAulaRealizado Boolean @default(false)
+  vendaEfetivada   Boolean @default(false)
+  codigoMatricula  String?
+
+  planoFechado  String?
+  vendedora     String?
+  dataConversao String?
+  tipoAluno     String? @default("NOVO")
+
+  criadoPorId     Int?
+  criadoPorNome   String?
+  alteradoPorId   Int?
+  alteradoPorNome String?
+  atualizadoEm    DateTime?
 
   unidadeId Int?
   unidade   Unidade? @relation(fields: [unidadeId], references: [id])
@@ -41,205 +92,477 @@ model Usuario {
   createdAt DateTime @default(now())
 }
 
-model Aula {
-  id                 Int      @id @default(autoincrement())
-  nomeAluno          String
-  telefone           String
-  data               String
-  horario            String
-  modalidade         String
-  status             String   @default("AGENDADA")
-  observacoes        String?
-  colaboradora       String
-
-  veio               Boolean  @default(false)
-  faltou             Boolean  @default(false)
-  remarcou           Boolean  @default(false)
-  cancelou           Boolean  @default(false)
-  posAulaRealizado   Boolean  @default(false)
-  vendaEfetivada     Boolean  @default(false)
-  codigoMatricula    String?
-
-  planoFechado       String?
-  vendedora          String?
-  dataConversao      String?
-  tipoAluno          String?  @default("NOVO")
-
-  criadoPorId        Int?
-  criadoPorNome      String?
-  alteradoPorId      Int?
-  alteradoPorNome    String?
-  atualizadoEm       DateTime?
-
-  unidadeId          Int?
-  unidade            Unidade? @relation(fields: [unidadeId], references: [id])
-
-  createdAt          DateTime @default(now())
-}
-
 model Diaria {
-  id               Int      @id @default(autoincrement())
-  nome             String
-  telefone         String
-  cpf              String
-  dataInicio       String
-  dataFinal        String
-  quantidadeDias   Int
-  observacoes      String?
-  colaboradora     String?
+  id             Int     @id @default(autoincrement())
+  nome           String
+  telefone       String
+  cpf            String
+  dataInicio     String
+  dataFinal      String
+  quantidadeDias Int
+  observacoes    String?
+  colaboradora   String?
 
-  status           String   @default("ATIVA")
-  tipoDiaria       String   @default("PAGA")
+  status     String @default("ATIVA")
+  tipoDiaria String @default("PAGA")
 
-  criadoPorId      Int?
-  criadoPorNome    String?
-  alteradoPorId    Int?
-  alteradoPorNome  String?
-  atualizadoEm     DateTime?
+  // Conversão da diária em venda/plano
+  converteuVenda     Boolean @default(false)
+  planoConvertido    String?
+  vendedoraConversao String?
+  dataConversao      String?
 
-  unidadeId        Int?
-  unidade          Unidade? @relation(fields: [unidadeId], references: [id])
+  criadoPorId     Int?
+  criadoPorNome   String?
+  alteradoPorId   Int?
+  alteradoPorNome String?
+  atualizadoEm    DateTime?
 
-  createdAt        DateTime @default(now())
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([dataInicio])
+  @@index([dataFinal])
+  @@index([status])
+  @@index([tipoDiaria])
+  @@index([converteuVenda])
+  @@index([dataConversao])
+  @@index([unidadeId])
 }
 
 model Configuracao {
-  id             Int      @id @default(autoincrement())
-  nomeAcademia  String
-  telefone      String
-  endereco      String
-  metaMensal    Int
-  corSistema    String
-  logo          String?
+  id           Int     @id @default(autoincrement())
+  nomeAcademia String
+  telefone     String
+  endereco     String
+  metaMensal   Int
+  corSistema   String
+  logo         String?
 
-  mensagemConfirmacao     String?
-  mensagemLembrete        String?
-  mensagemPosAula         String?
-  mensagemNaoCompareceu   String?
-  mensagemCancelou        String?
+  // Aulas experimentais
+  mensagemConfirmacao   String?
+  mensagemLembrete      String?
+  mensagemPosAula       String?
+  mensagemNaoCompareceu String?
+  mensagemCancelou      String?
+
+  // Diárias
   mensagemDiaria          String?
+  mensagemDiariaUltimoDia String?
+  mensagemDiariaConversao String?
 
-  unidadeId     Int?
-  unidade       Unidade? @relation(fields: [unidadeId], references: [id])
+  // Agenda Nutricionista
+  mensagemNutriConfirmacao String?
+  mensagemNutriLembrete    String?
+  mensagemNutriCardapio    String?
+  mensagemNutriBio         String?
+  mensagemNutriCardapioBio String?
+  mensagemNutriRetorno     String?
 
-  createdAt     DateTime @default(now())
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model Historico {
-  id              Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  usuarioId       Int?
-  usuarioNome     String?
-  usuarioCargo    String?
+  usuarioId    Int?
+  usuarioNome  String?
+  usuarioCargo String?
 
-  acao            String
-  tela            String
-  registroId      Int?
-  registroNome    String?
+  acao         String
+  tela         String
+  registroId   Int?
+  registroNome String?
 
-  descricao       String?
-  dadosAntes      String?
-  dadosDepois     String?
+  descricao   String?
+  dadosAntes  String?
+  dadosDepois String?
 
-  unidadeId       Int?
-  unidade         Unidade? @relation(fields: [unidadeId], references: [id])
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model ContratoMeta {
-  id                    Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  matricula             String?
-  nomeAluno             String
-  vendedora             String
+  matricula String?
+  nomeAluno String
+  vendedora String
 
-  plano                 String
-  tipoContrato          String
-  permanencia           String   @default("MENSAL")
-  dataVenda             String
+  plano        String
+  tipoContrato String
+  permanencia  String @default("MENSAL")
+  dataVenda    String
 
-  valorPrimeiraParcela  Float?
+  // Regras especiais das metas
+  transferenciaUnidade Boolean @default(false)
+  unidadeOrigemId      Int?
+  unidadeOrigemNome    String?
 
-  convenio              Boolean  @default(false)
-  nomeConvenio          String?
+  acrescimoModalidade Boolean @default(false)
+  modalidadeAnterior  String?
 
-  contratoDividido      Boolean  @default(false)
-  quantidadeMeios       Int      @default(0)
-  divididoCom           String?
+  trocaModalidade Boolean @default(false)
 
-  observacao            String?
+  cancelado    Boolean   @default(false)
+  canceladoEm  DateTime?
+  canceladoPor String?
 
-  criadoPorId           Int?
-  criadoPorNome         String?
-  alteradoPorId         Int?
-  alteradoPorNome       String?
-  atualizadoEm          DateTime?
+  valorPrimeiraParcela Float?
 
-  unidadeId             Int?
-  unidade               Unidade? @relation(fields: [unidadeId], references: [id])
+  convenio     Boolean @default(false)
+  nomeConvenio String?
 
-  createdAt             DateTime @default(now())
+  contratoDividido Boolean @default(false)
+  quantidadeMeios  Int     @default(0)
+  divididoCom      String?
+
+  observacao String?
+
+  criadoPorId     Int?
+  criadoPorNome   String?
+  alteradoPorId   Int?
+  alteradoPorNome String?
+  atualizadoEm    DateTime?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([unidadeId])
+  @@index([dataVenda])
+  @@index([matricula])
+  @@index([nomeAluno])
+  @@index([vendedora])
+  @@index([transferenciaUnidade])
+  @@index([unidadeOrigemId])
+  @@index([acrescimoModalidade])
+  @@index([trocaModalidade])
 }
 
 model ConfiguracaoMeta {
-  id          Int      @id @default(autoincrement())
-  mes         String   @default("2026-06")
+  id  Int    @id @default(autoincrement())
+  mes String @default("2026-06")
 
-  meta1Qtd    Int      @default(30)
-  meta1Valor  Float    @default(300)
+  meta1Qtd   Int   @default(30)
+  meta1Valor Float @default(300)
 
-  meta2Qtd    Int      @default(40)
-  meta2Valor  Float    @default(500)
+  meta2Qtd   Int   @default(40)
+  meta2Valor Float @default(500)
 
-  meta3Qtd    Int      @default(50)
-  meta3Valor  Float    @default(800)
+  meta3Qtd   Int   @default(50)
+  meta3Valor Float @default(800)
 
-  meta4Qtd    Int      @default(60)
-  meta4Valor  Float    @default(1200)
+  meta4Qtd   Int   @default(60)
+  meta4Valor Float @default(1200)
 
   mensagemMotivacional String?
   mensagemCrista       String?
 
-  unidadeId   Int?
-  unidade     Unidade? @relation(fields: [unidadeId], references: [id])
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  metaEmpresa Int @default(60)
+  metaEmpresa Int      @default(60)
 
-  campanhaTitulo String?
-  campanhaPremio String?
-  campanhaRegra String?
-  campanhaUnidade String?
-campanhaProgresso Int @default(0)
-campanhaObjetivo Int @default(2)
-campanhaAtiva Boolean @default(true)
-campanhaFuncionarias String?
+  campanhaTitulo       String?
+  campanhaPremio       String?
+  campanhaRegra        String?
+  campanhaUnidade      String?
+  campanhaProgresso    Int     @default(0)
+  campanhaObjetivo     Int     @default(2)
+  campanhaAtiva        Boolean @default(true)
+  campanhaFuncionarias String?
 
-comunicado1Titulo String?
-comunicado1Mensagem String?
-comunicado2Titulo String?
-comunicado2Mensagem String?
-comunicado3Titulo String?
-comunicado3Mensagem String?
+  comunicado1Titulo   String?
+  comunicado1Mensagem String?
+  comunicado2Titulo   String?
+  comunicado2Mensagem String?
+  comunicado3Titulo   String?
+  comunicado3Mensagem String?
 
-lancamentoTitulo String?
-lancamentoMensagem String?
+  lancamentoTitulo   String?
+  lancamentoMensagem String?
 }
 
 model MetaPessoal {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   usuarioId   Int?
   usuarioNome String
 
-  mes         String
-  meta        Int      @default(40)
+  mes  String
+  meta Int    @default(40)
 
-  unidadeId   Int?
-  unidade     Unidade? @relation(fields: [unidadeId], references: [id])
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =============================
+// AGENDA NUTRICIONISTA
+// =============================
+
+model AgendaNutricionista {
+  id Int @id @default(autoincrement())
+
+  nomeAluno String
+  telefone  String
+  matricula String?
+
+  dataConsulta String
+  horaConsulta String
+
+  tipoConsulta String
+  observacoes  String?
+
+  statusPresenca  String @default("AGUARDANDO_RESPOSTA")
+  statusPagamento String @default("FREE")
+
+  primeiraConsulta     Boolean @default(false)
+  retorno              Boolean @default(false)
+  acompanhamentoMensal Boolean @default(false)
+
+  diasParaRetorno Int?
+  dataRetorno     String?
+
+  cardapioPronto  Boolean @default(false)
+  cardapioEnviado Boolean @default(false)
+  cardapioUrl     String?
+  cardapioNome    String?
+
+  bioimpedanciaPronta  Boolean @default(false)
+  bioimpedanciaEnviada Boolean @default(false)
+  bioimpedanciaUrl     String?
+  bioimpedanciaNome    String?
+
+  // Conversão da consulta nutricionista em plano pago
+  converteuPlanoPago Boolean @default(false)
+  planoConvertido    String?
+  vendedoraConversao String?
+  dataConversao      String?
+
+  criadoPorId   Int?
+  criadoPorNome String?
+  criadoPor     Usuario? @relation("AgendaCriadaPor", fields: [criadoPorId], references: [id])
+
+  alteradoPorId   Int?
+  alteradoPorNome String?
+  atualizadoEm    DateTime?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dataConsulta])
+  @@index([dataConsulta, horaConsulta])
+  @@index([unidadeId])
+  @@index([statusPresenca])
+  @@index([statusPagamento])
+  @@index([converteuPlanoPago])
+  @@index([dataConversao])
+  @@index([vendedoraConversao])
+}
+
+model AgendaNutricionistaHorario {
+  id Int @id @default(autoincrement())
+
+  horario String
+  ativo   Boolean @default(true)
+
+  // 0 = domingo, 1 = segunda, 2 = terça, 3 = quarta, 4 = quinta, 5 = sexta, 6 = sábado
+  diaSemana Int?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([horario])
+  @@index([ativo])
+  @@index([unidadeId])
+}
+
+model AgendaNutricionistaBloqueio {
+  id Int @id @default(autoincrement())
+
+  data   String
+  motivo String
+
+  diaTodo       Boolean @default(true)
+  horarioInicio String?
+  horarioFim    String?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([data])
+  @@index([unidadeId])
+}
+
+model AgendaNutricionistaAviso {
+  id Int @id @default(autoincrement())
+
+  titulo   String
+  mensagem String
+  ativo    Boolean @default(true)
+
+  dataInicio String?
+  dataFim    String?
+
+  publicadoPor String?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo])
+  @@index([dataInicio])
+  @@index([unidadeId])
+}
+
+model AgendaNutricionistaMensagem {
+  id Int @id @default(autoincrement())
+
+  mensagem String
+
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  usuarioNome  String?
+  usuarioCargo String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([usuarioId])
+}
+
+model AgendaPessoal {
+  id Int @id @default(autoincrement())
+
+  titulo    String
+  descricao String?
+
+  // EVENTO | REUNIAO | TAREFA | LEMBRETE
+  tipo String @default("EVENTO")
+
+  dataInicio String
+  horaInicio String?
+
+  dataFim String?
+  horaFim String?
+
+  diaInteiro Boolean @default(false)
+
+  // PENDENTE | ACEITO | RECUSADO | CONCLUIDO | REAGENDADO
+  status String @default("PENDENTE")
+
+  // BAIXA | NORMAL | ALTA | URGENTE
+  prioridade String @default("NORMAL")
+
+  criadoPorId   Int?
+  criadoPorNome String?
+  criadoPor     Usuario? @relation("AgendaPessoalCriadaPor", fields: [criadoPorId], references: [id])
+
+  responsavelId   Int?
+  responsavelNome String?
+  responsavel     Usuario? @relation("AgendaPessoalResponsavel", fields: [responsavelId], references: [id])
+
+  compartilhado          Boolean @default(false)
+  usuariosCompartilhados String?
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  compartilhamentos AgendaPessoalCompartilhamento[]
+  notificacoes      AgendaPessoalNotificacao[]
+
+  @@index([dataInicio])
+  @@index([dataInicio, horaInicio])
+  @@index([criadoPorId])
+  @@index([responsavelId])
+  @@index([unidadeId])
+  @@index([tipo])
+  @@index([status])
+}
+
+model AgendaPessoalCompartilhamento {
+  id Int @id @default(autoincrement())
+
+  agendaId Int
+  agenda   AgendaPessoal @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  usuarioId   Int
+  usuario     Usuario? @relation(fields: [usuarioId], references: [id])
+  usuarioNome String
+
+  // PENDENTE | ACEITO | RECUSADO
+  status String @default("PENDENTE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agendaId])
+  @@index([usuarioId])
+  @@index([status])
+}
+
+model AgendaPessoalNotificacao {
+  id Int @id @default(autoincrement())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  titulo   String
+  mensagem String
+
+  lida Boolean @default(false)
+
+  agendaId Int?
+  agenda   AgendaPessoal? @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([lida])
+  @@index([createdAt])
+  @@index([agendaId])
+}
+
+model Modalidade {
+  id Int @id @default(autoincrement())
+
+  nome String
+
+  unidadeId Int?
+  unidade   Unidade? @relation(fields: [unidadeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nome])
+  @@index([unidadeId])
 }

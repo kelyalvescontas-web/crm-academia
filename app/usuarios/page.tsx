@@ -36,7 +36,7 @@ export default function UsuariosPage() {
 
     if (cargoUser === "INSTRUTOR") {
       alert("Você não tem permissão para acessar usuários.");
-      router.push("/");
+      router.push("/calendario");
       return;
     }
 
@@ -312,6 +312,7 @@ export default function UsuariosPage() {
                 <option value="ADMIN">ADMIN</option>
                 <option value="ADMIN_GERAL">ADMIN GERAL</option>
                 <option value="COLABORADORA">COLABORADORA</option>
+                <option value="NUTRICIONISTA">NUTRICIONISTA</option>
                 <option value="INSTRUTOR">INSTRUTOR</option>
               </select>
             </div>

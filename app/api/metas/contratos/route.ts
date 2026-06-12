@@ -39,6 +39,7 @@ export async function GET(req: Request) {
     const plano = searchParams.get("plano");
     const permanencia = searchParams.get("permanencia");
     const tipoContrato = searchParams.get("tipoContrato");
+    const verificarDuplicado = searchParams.get("verificarDuplicado");
 
     if (!unidadeId) {
       return Response.json(
@@ -47,8 +48,49 @@ export async function GET(req: Request) {
       );
     }
 
+    if (verificarDuplicado === "1") {
+      const matricula = String(searchParams.get("matricula") || "").trim();
+      const nomeAluno = String(searchParams.get("nomeAluno") || "").trim();
+
+      if (!matricula && !nomeAluno) {
+        return Response.json({ duplicado: false, contrato: null });
+      }
+
+      const duplicado = await prisma.contratoMeta.findFirst({
+        where: {
+          unidadeId,
+          OR: [
+            matricula ? { matricula } : {},
+            nomeAluno
+              ? {
+                  nomeAluno: {
+                    equals: nomeAluno.toUpperCase(),
+                    mode: "insensitive",
+                  },
+                }
+              : {},
+          ],
+        },
+        orderBy: [
+          { dataVenda: "desc" },
+          { createdAt: "desc" },
+        ],
+      });
+
+      return Response.json({
+        duplicado: Boolean(duplicado),
+        contrato: duplicado,
+      });
+    }
+
     const where: any = {
-      unidadeId,
+      OR: [
+        { unidadeId },
+        {
+          transferenciaUnidade: true,
+          unidadeOrigemId: unidadeId,
+        },
+      ],
     };
 
     // ADMIN, COLABORADORA e demais cargos veem somente:
@@ -56,19 +98,24 @@ export async function GET(req: Request) {
     // 2) contratos divididos com elas
     // Comparação insensível a maiúsculas/minúsculas para não esconder contratos próprios.
     if (!podeVerTodos(usuarioCargo)) {
-      where.OR = [
+      where.AND = [
+        ...(where.AND || []),
         {
-          vendedora: {
-            equals: usuarioNome,
-            mode: "insensitive",
-          },
-        },
-        {
-          contratoDividido: true,
-          divididoCom: {
-            equals: usuarioNome,
-            mode: "insensitive",
-          },
+          OR: [
+            {
+              vendedora: {
+                equals: usuarioNome,
+                mode: "insensitive",
+              },
+            },
+            {
+              contratoDividido: true,
+              divididoCom: {
+                equals: usuarioNome,
+                mode: "insensitive",
+              },
+            },
+          ],
         },
       ];
     }
@@ -189,6 +236,19 @@ export async function POST(req: Request) {
         permanencia: body.permanencia || "MENSAL",
         dataVenda,
 
+        transferenciaUnidade: Boolean(body.transferenciaUnidade),
+        unidadeOrigemId: body.unidadeOrigemId ? Number(body.unidadeOrigemId) : null,
+        unidadeOrigemNome: body.unidadeOrigemNome || "",
+
+        acrescimoModalidade: Boolean(body.acrescimoModalidade),
+        modalidadeAnterior: body.modalidadeAnterior || "",
+
+        trocaModalidade: Boolean(body.trocaModalidade),
+
+        cancelado: Boolean(body.cancelado),
+        canceladoEm: body.canceladoEm ? new Date(body.canceladoEm) : null,
+        canceladoPor: body.canceladoPor || "",
+
         valorPrimeiraParcela:
           body.valorPrimeiraParcela !== "" &&
           body.valorPrimeiraParcela !== null &&
@@ -247,6 +307,19 @@ export async function PUT(req: Request) {
         tipoContrato: body.tipoContrato || "",
         permanencia: body.permanencia || "MENSAL",
         dataVenda: body.dataVenda || "",
+
+        transferenciaUnidade: Boolean(body.transferenciaUnidade),
+        unidadeOrigemId: body.unidadeOrigemId ? Number(body.unidadeOrigemId) : null,
+        unidadeOrigemNome: body.unidadeOrigemNome || "",
+
+        acrescimoModalidade: Boolean(body.acrescimoModalidade),
+        modalidadeAnterior: body.modalidadeAnterior || "",
+
+        trocaModalidade: Boolean(body.trocaModalidade),
+
+        cancelado: Boolean(body.cancelado),
+        canceladoEm: body.canceladoEm ? new Date(body.canceladoEm) : null,
+        canceladoPor: body.canceladoPor || "",
 
         valorPrimeiraParcela:
           body.valorPrimeiraParcela !== "" &&

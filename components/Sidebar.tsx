@@ -13,6 +13,8 @@ import {
   MdHistory,
   MdLogout,
   MdFitnessCenter,
+  MdRestaurantMenu,
+  MdEventAvailable,
 } from "react-icons/md";
 
 import {
@@ -97,11 +99,31 @@ export default function Sidebar() {
 
   const cargo = String(usuario?.cargo || "").toUpperCase();
 
+  const itemAgendaNutricionista = {
+    nome: "Agenda Nutricionista",
+    rota: "/agenda-nutricionista",
+    icone: MdRestaurantMenu,
+  };
+
+  const itemAgendaPessoal = {
+    nome: "Agenda Pessoal",
+    rota: "/agenda-pessoal",
+    icone: MdEventAvailable,
+  };
+
+  const itemMeuPerfil = {
+    nome: "Meu Perfil",
+    rota: "/usuarios",
+    icone: MdPeopleAlt,
+  };
+
   const menuAdmin = [
     { nome: "Dashboard", rota: "/", icone: MdDashboard },
     { nome: "Aulas Agendadas", rota: "/aulas", icone: MdEventNote },
     { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
     { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
+    itemAgendaNutricionista,
+    itemAgendaPessoal,
     { nome: "Metas", rota: "/metas", icone: FaBullseye },
     { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
     { nome: "Relatórios", rota: "/relatorios", icone: FaChartLine },
@@ -113,6 +135,8 @@ export default function Sidebar() {
     { nome: "Aulas Agendadas", rota: "/aulas", icone: MdEventNote },
     { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
     { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
+    itemAgendaNutricionista,
+    itemAgendaPessoal,
     { nome: "Metas", rota: "/metas", icone: FaBullseye },
     { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
     { nome: "Relatórios", rota: "/relatorios", icone: FaChartLine },
@@ -125,16 +149,27 @@ export default function Sidebar() {
     { nome: "Aulas Agendadas", rota: "/aulas", icone: MdEventNote },
     { nome: "Diárias", rota: "/diarias", icone: FaTicketAlt },
     { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
+    itemAgendaNutricionista,
+    itemAgendaPessoal,
     { nome: "Metas", rota: "/metas", icone: FaBullseye },
     { nome: "Usuários", rota: "/usuarios", icone: MdPeopleAlt },
   ];
 
   const menuInstrutor = [
     { nome: "Calendário", rota: "/calendario", icone: MdCalendarMonth },
+    itemAgendaPessoal,
+  ];
+
+  const menuNutricionista = [
+    itemAgendaNutricionista,
+    itemAgendaPessoal,
+    itemMeuPerfil,
   ];
 
   const menu =
-    cargo === "INSTRUTOR"
+    cargo === "NUTRICIONISTA"
+      ? menuNutricionista
+      : cargo === "INSTRUTOR"
       ? menuInstrutor
       : cargo === "ADMIN_GERAL"
       ? menuAdminGeral

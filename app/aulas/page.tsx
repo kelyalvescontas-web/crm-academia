@@ -38,6 +38,8 @@ export default function AulasPage() {
   const [dataConversao, setDataConversao] = useState("");
   const [tipoAluno, setTipoAluno] = useState("NOVO");
 
+  const [configuracao, setConfiguracao] = useState<any>(null);
+
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
 
@@ -47,6 +49,7 @@ export default function AulasPage() {
     }
 
     carregarAulas();
+    carregarConfiguracoes();
   }, [router]);
 
   async function carregarAulas() {
@@ -65,6 +68,31 @@ export default function AulasPage() {
     const data = await response.json();
     setAulas(Array.isArray(data) ? data : []);
   }
+
+  async function carregarConfiguracoes() {
+    const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+    const unidadeId =
+      usuarioLogado.cargo === "ADMIN_GERAL"
+        ? localStorage.getItem("unidadeSelecionadaId")
+        : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+
+    if (!unidadeId) return;
+
+    try {
+      const response = await fetch(`/api/configuracoes?unidadeId=${unidadeId}`, {
+        cache: "no-store",
+      });
+
+      const dataConfig = await response.json();
+
+      if (!dataConfig?.error) {
+        setConfiguracao(dataConfig);
+      }
+    } catch (error) {
+      console.log("Erro ao carregar mensagens configuradas:", error);
+    }
+  }
+
 
   function somenteNumeros(valor: string) {
     return valor.replace(/\D/g, "");
@@ -322,53 +350,75 @@ export default function AulasPage() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
-  function abrirWhatsApp(tipo: string) {
-    const aluno = primeiroNome(nomeAluno);
-    const colab = primeiroNome(colaboradora);
-    const numero = telefone.replace(/\D/g, "");
 
-    if (!telefoneValido(telefone)) {
-      alert("Preencha um telefone válido antes de abrir o WhatsApp");
-      return;
-    }
+  function aplicarModeloMensagem(modelo: string, dadosExtras: any = {}) {
+    const academia = configuracao?.nomeAcademia || "PRIX ACADEMIA";
+    const enderecoAcademia =
+      configuracao?.endereco || "Avenida Irmãos Pereira, 251 - Esquina com o posto Flex";
 
-    let mensagem = "";
+    const variaveis: any = {
+      aluno: primeiroNome(nomeAluno),
+      colaboradora: primeiroNome(colaboradora),
+      vendedora: primeiroNome(vendedora),
+      data: formatarData(data),
+      horario,
+      modalidade,
+      academia,
+      endereco: enderecoAcademia,
+      telefone,
+      plano: planoFechado,
+      matricula: codigoMatricula,
+      ...dadosExtras,
+    };
 
+    let mensagem = modelo || "";
+
+    Object.entries(variaveis).forEach(([chave, valor]) => {
+      mensagem = mensagem.replace(
+        new RegExp(`{${chave}}`, "g"),
+        String(valor || "")
+      );
+    });
+
+    return mensagem;
+  }
+
+  function mensagemPadraoAula(tipo: string) {
     if (tipo === "confirmacao") {
-      mensagem = `Oie ${aluno}, tudo bem?
+      return `Oie {aluno}, tudo bem?
 
-Sua aula experimental foi agendada pela atendente *${colab}*.
+Sua aula experimental foi agendada pela atendente *{colaboradora}*.
 
-Data: *${formatarData(data)}*
-Horário: *${horario}*
-Modalidade: *${modalidade}*
+Data: *{data}*
+Horário: *{horario}*
+Modalidade: *{modalidade}*
 
 Te esperamos por aqui!
 
-*PRIX ACADEMIA*
-Avenida Irmãos Pereira, 251 - Esquina com o posto Flex`;
+*{academia}*
+{endereco}`;
     }
 
     if (tipo === "lembrete") {
-      mensagem = `Oie ${aluno}, tudo bem?
+      return `Oie {aluno}, tudo bem?
 
 Passando para te lembrar que sua aula experimental é *Hoje*.
 
-Horário: *${horario}*
-Modalidade: *${modalidade}*
+Horário: *{horario}*
+Modalidade: *{modalidade}*
 
 Estamos te esperando! Venha com roupa confortável, tênis e sua garrafinha de água para aproveitar ao máximo seu treino experimental!
 
-*${colab}*
+*{colaboradora}*
 
-*PRIX ACADEMIA*
-Avenida Irmãos Pereira, 251 - Esquina com o posto Flex`;
+*{academia}*
+{endereco}`;
     }
 
     if (tipo === "pos") {
-      mensagem = `Oie ${aluno}, tudo bem?
+      return `Oie {aluno}, tudo bem?
 
-Aqui é a ${colab} da Prix Academia.
+Aqui é a {colaboradora} da {academia}.
 
 Queria saber se gostou da sua aula experimental 😊
 
@@ -379,9 +429,9 @@ Qualquer dúvida, estou por aqui 😊`;
     }
 
     if (tipo === "nao") {
-      mensagem = `Oie ${aluno}
+      return `Oie {aluno}
 
-Aqui é a ${colab} da Prix Academia.
+Aqui é a {colaboradora} da {academia}.
 
 Ficamos te esperando para sua aula experimental, mas você não compareceu.
 
@@ -391,14 +441,41 @@ Vamos agendar ainda essa semana?`;
     }
 
     if (tipo === "cancelou") {
-      mensagem = `Olá, ${aluno}! Tudo bem?
+      return `Olá, {aluno}! Tudo bem?
 
-Aqui é a ${colab} da Prix.
+Aqui é a {colaboradora} da Prix.
 
 Vi que você cancelou sua aula experimental que estava agendada. Que tal remarcarmos para hoje no mesmo horário? Será um prazer receber você!
 
 Aguardo sua resposta.`;
     }
+
+    return "";
+  }
+
+  function mensagemConfiguradaAula(tipo: string) {
+    const mapa: any = {
+      confirmacao: "mensagemConfirmacao",
+      lembrete: "mensagemLembrete",
+      pos: "mensagemPosAula",
+      nao: "mensagemNaoCompareceu",
+      cancelou: "mensagemCancelou",
+    };
+
+    const campo = mapa[tipo];
+    return configuracao?.[campo] || mensagemPadraoAula(tipo);
+  }
+
+  function abrirWhatsApp(tipo: string) {
+    const numero = telefone.replace(/\D/g, "");
+
+    if (!telefoneValido(telefone)) {
+      alert("Preencha um telefone válido antes de abrir o WhatsApp");
+      return;
+    }
+
+    const modelo = mensagemConfiguradaAula(tipo);
+    const mensagem = aplicarModeloMensagem(modelo);
 
     window.open(
       `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`,

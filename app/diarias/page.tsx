@@ -4,14 +4,40 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 
+function pegarUsuarioAtual() {
+  return JSON.parse(localStorage.getItem("usuario") || "{}");
+}
+
 function pegarUnidadeAtual() {
-  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const usuario = pegarUsuarioAtual();
 
   if (usuario.cargo === "ADMIN_GERAL") {
     return localStorage.getItem("unidadeSelecionadaId");
   }
 
   return String(usuario.unidadeId || "");
+}
+
+function hojeISO() {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const ano = partes.find((p) => p.type === "year")?.value || "";
+  const mes = partes.find((p) => p.type === "month")?.value || "";
+  const dia = partes.find((p) => p.type === "day")?.value || "";
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function dataLocalISO(data: Date) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
 }
 
 export default function DiariasPage() {
@@ -35,6 +61,11 @@ export default function DiariasPage() {
   const [colaboradora, setColaboradora] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [tipoDiaria, setTipoDiaria] = useState("PAGA");
+
+  const [converteuVenda, setConverteuVenda] = useState(false);
+  const [planoConvertido, setPlanoConvertido] = useState("MENSAL");
+  const [vendedoraConversao, setVendedoraConversao] = useState("");
+  const [dataConversao, setDataConversao] = useState(hojeISO());
 
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
@@ -68,18 +99,13 @@ export default function DiariasPage() {
     return numeros.length === 10 || numeros.length === 11;
   }
 
-  function hojeISO() {
-    const hoje = new Date();
-    return hoje.toISOString().split("T")[0];
-  }
-
   function calcularDataFinal(inicio: string, dias: number) {
     if (!inicio) return "";
 
     const data = new Date(`${inicio}T00:00:00`);
     data.setDate(data.getDate() + Number(dias || 1) - 1);
 
-    return data.toISOString().split("T")[0];
+    return dataLocalISO(data);
   }
 
   function statusDiaria(dataFinal: string) {
@@ -127,6 +153,10 @@ export default function DiariasPage() {
     setColaboradora("");
     setObservacoes("");
     setTipoDiaria("PAGA");
+    setConverteuVenda(false);
+    setPlanoConvertido("MENSAL");
+    setVendedoraConversao("");
+    setDataConversao(hojeISO());
     setSalvando(false);
   }
 
@@ -134,14 +164,30 @@ export default function DiariasPage() {
     if (salvando) return;
 
     const unidadeId = pegarUnidadeAtual();
+    const usuario = pegarUsuarioAtual();
 
     if (!unidadeId) {
       alert("Selecione uma unidade no Dashboard");
       return;
     }
 
+    if (!nome.trim()) {
+      alert("Preencha o nome.");
+      return;
+    }
+
+    if (!dataInicio) {
+      alert("Preencha a data inicial.");
+      return;
+    }
+
     if (!telefoneValido(telefone)) {
       alert("Telefone inválido. Preencha no formato (XX)XXXXX-XXXX.");
+      return;
+    }
+
+    if (converteuVenda && !vendedoraConversao.trim()) {
+      alert("Informe a vendedora que converteu a diária.");
       return;
     }
 
@@ -168,16 +214,27 @@ export default function DiariasPage() {
           observacoes: observacoes.trim().toUpperCase(),
           status,
           tipoDiaria,
+
+          converteuVenda,
+          planoConvertido: converteuVenda ? planoConvertido : "",
+          vendedoraConversao: converteuVenda ? vendedoraConversao.trim().toUpperCase() : "",
+          dataConversao: converteuVenda ? dataConversao : "",
+
           unidadeId: Number(unidadeId),
+          usuarioId: usuario?.id,
+          usuarioNome: usuario?.nome,
+          usuarioCargo: usuario?.cargo,
         }),
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         await carregarDiarias();
         limparFormulario();
         setMostrarFormulario(false);
       } else {
-        alert("Erro ao salvar diária");
+        alert(data?.error || "Erro ao salvar diária");
         setSalvando(false);
       }
     } catch (error) {
@@ -196,6 +253,10 @@ export default function DiariasPage() {
     setColaboradora(diaria.colaboradora || "");
     setObservacoes(diaria.observacoes || "");
     setTipoDiaria(diaria.tipoDiaria || "PAGA");
+    setConverteuVenda(Boolean(diaria.converteuVenda));
+    setPlanoConvertido(diaria.planoConvertido || "MENSAL");
+    setVendedoraConversao(diaria.vendedoraConversao || "");
+    setDataConversao(diaria.dataConversao || hojeISO());
     setMostrarFormulario(true);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -204,12 +265,19 @@ export default function DiariasPage() {
   async function excluirDiaria(id: number) {
     if (!confirm("Deseja excluir esta diária?")) return;
 
+    const usuario = pegarUsuarioAtual();
+
     await fetch("/api/diarias", {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({
+        id,
+        usuarioId: usuario?.id,
+        usuarioNome: usuario?.nome,
+        usuarioCargo: usuario?.cargo,
+      }),
     });
 
     await carregarDiarias();
@@ -225,6 +293,8 @@ export default function DiariasPage() {
       diaria.cpf?.includes(busca) ||
       diaria.colaboradora?.toUpperCase().includes(termo) ||
       diaria.tipoDiaria?.toUpperCase().includes(termo) ||
+      diaria.vendedoraConversao?.toUpperCase().includes(termo) ||
+      diaria.planoConvertido?.toUpperCase().includes(termo) ||
       statusAtual.toUpperCase().includes(termo);
 
     const bateStatus = !statusFiltro || statusAtual === statusFiltro;
@@ -249,7 +319,12 @@ export default function DiariasPage() {
 
       <section className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Diárias</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Diárias</h1>
+            <p className="text-gray-500 mt-1">
+              Cadastre diárias e acompanhe conversões em planos.
+            </p>
+          </div>
 
           <button
             onClick={() => {
@@ -259,7 +334,7 @@ export default function DiariasPage() {
             }}
             className="bg-blue-900 text-white px-5 py-3 rounded-xl font-bold"
           >
-            Cadastrar Diária
+            + Cadastrar Diária
           </button>
         </div>
 
@@ -325,6 +400,59 @@ export default function DiariasPage() {
               </div>
             </div>
 
+            <div className="mt-6 rounded-2xl border border-green-300 bg-green-50 p-5">
+              <div className="flex flex-wrap justify-between gap-4 items-center mb-4">
+                <div>
+                  <h3 className="text-xl font-black text-green-900">
+                    💰 Conversão da Diária em Venda
+                  </h3>
+                  <p className="text-sm text-green-800">
+                    Marque caso esta diária tenha virado contrato/plano.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setConverteuVenda(!converteuVenda)}
+                  className={`px-5 py-3 rounded-xl font-black ${
+                    converteuVenda
+                      ? "bg-green-700 text-white"
+                      : "bg-white text-green-700 border border-green-400"
+                  }`}
+                >
+                  {converteuVenda ? "✅ Convertida" : "Marcar como convertida"}
+                </button>
+              </div>
+
+              {converteuVenda && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Select
+                    label="📋 Plano convertido"
+                    value={planoConvertido}
+                    setValue={setPlanoConvertido}
+                  >
+                    <option value="MENSAL">MENSAL</option>
+                    <option value="TRIMESTRAL">TRIMESTRAL</option>
+                    <option value="SEMESTRAL">SEMESTRAL</option>
+                    <option value="ANUAL">ANUAL</option>
+                  </Select>
+
+                  <Input
+                    label="👩‍💼 Vendedora que converteu"
+                    value={vendedoraConversao}
+                    setValue={setVendedoraConversao}
+                  />
+
+                  <Input
+                    label="📅 Data da conversão"
+                    type="date"
+                    value={dataConversao}
+                    setValue={setDataConversao}
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="mt-5">
               <label className="block mb-2">Observações</label>
 
@@ -372,7 +500,7 @@ export default function DiariasPage() {
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome, telefone, CPF, colaboradora, status ou tipo..."
+                placeholder="Buscar por nome, telefone, CPF, colaboradora, status, plano ou vendedora..."
                 className="border rounded-xl p-3 w-96 max-w-full"
               />
             </div>
@@ -426,7 +554,7 @@ export default function DiariasPage() {
           </div>
 
           <div className="overflow-auto">
-            <table className="w-full min-w-[950px]">
+            <table className="w-full min-w-[1150px]">
               <thead>
                 <tr className="border-b">
                   <th className="p-3 text-left">Nome</th>
@@ -436,6 +564,9 @@ export default function DiariasPage() {
                   <th className="p-3 text-left">Dias</th>
                   <th className="p-3 text-left">Tipo</th>
                   <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Conversão</th>
+                  <th className="p-3 text-left">Plano</th>
+                  <th className="p-3 text-left">Vendedora</th>
                   <th className="p-3 text-left">Ações</th>
                 </tr>
               </thead>
@@ -443,7 +574,7 @@ export default function DiariasPage() {
               <tbody>
                 {diariasFiltradas.map((diaria) => (
                   <tr key={diaria.id} className="border-b">
-                    <td className="p-3">{diaria.nome}</td>
+                    <td className="p-3 font-bold">{diaria.nome}</td>
                     <td className="p-3">{formatarTelefone(diaria.telefone || "")}</td>
                     <td className="p-3">{formatarData(diaria.dataInicio)}</td>
                     <td className="p-3">{formatarData(diaria.dataFinal)}</td>
@@ -460,6 +591,21 @@ export default function DiariasPage() {
                     >
                       {statusDiaria(diaria.dataFinal)}
                     </td>
+
+                    <td className="p-3">
+                      {diaria.converteuVenda ? (
+                        <span className="rounded-full bg-green-100 px-3 py-1 font-bold text-green-700">
+                          Convertida
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-3 py-1 font-bold text-gray-600">
+                          Não
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="p-3">{diaria.planoConvertido || "-"}</td>
+                    <td className="p-3">{diaria.vendedoraConversao || "-"}</td>
 
                     <td className="p-3">
                       <div className="flex gap-2">
@@ -483,7 +629,7 @@ export default function DiariasPage() {
 
                 {diariasFiltradas.length === 0 && (
                   <tr>
-                    <td className="p-4 text-gray-500" colSpan={8}>
+                    <td className="p-4 text-gray-500" colSpan={11}>
                       Nenhuma diária encontrada.
                     </td>
                   </tr>
@@ -500,7 +646,7 @@ export default function DiariasPage() {
 function Input({ label, value, setValue, type = "text" }: any) {
   return (
     <div>
-      <label className="block mb-2">{label}</label>
+      <label className="block mb-2 font-semibold">{label}</label>
 
       <input
         type={type}
@@ -515,7 +661,7 @@ function Input({ label, value, setValue, type = "text" }: any) {
 function Select({ label, value, setValue, children }: any) {
   return (
     <div>
-      <label className="block mb-2">{label}</label>
+      <label className="block mb-2 font-semibold">{label}</label>
 
       <select
         value={value}

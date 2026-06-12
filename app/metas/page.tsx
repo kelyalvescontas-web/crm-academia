@@ -69,6 +69,10 @@ export default function MetasPage() {
   const [filtroDivididoCom, setFiltroDivididoCom] = useState("TODOS");
   const [filtroVendedora, setFiltroVendedora] = useState("TODAS");
   const [pesquisaContrato, setPesquisaContrato] = useState("");
+  const [filtroDataInicialContrato, setFiltroDataInicialContrato] = useState("");
+  const [filtroDataFinalContrato, setFiltroDataFinalContrato] = useState("");
+  const [dataInicialContratoTemp, setDataInicialContratoTemp] = useState("");
+  const [dataFinalContratoTemp, setDataFinalContratoTemp] = useState("");
 
   const [pinLiberado, setPinLiberado] = useState(false);
   const [mostrarPin, setMostrarPin] = useState(false);
@@ -302,6 +306,27 @@ export default function MetasPage() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
+  function dataContratoISO(data: any) {
+    const texto = String(data || "").trim();
+
+    if (!texto) return "";
+
+    // Já está no formato correto do input date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+
+    // Caso esteja salvo/mostrado como dd/mm/aaaa
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+      const [dia, mes, ano] = texto.split("/");
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    // Caso venha com horário junto
+    if (/^\d{4}-\d{2}-\d{2}/.test(texto)) return texto.slice(0, 10);
+
+    return texto;
+  }
+
+
   function formatarDinheiro(valor: any) {
     return Number(valor || 0).toLocaleString("pt-BR", {
       style: "currency",
@@ -318,11 +343,20 @@ export default function MetasPage() {
     );
   }
 
+  function aplicarFiltroPeriodoContratos() {
+    setFiltroDataInicialContrato(dataInicialContratoTemp);
+    setFiltroDataFinalContrato(dataFinalContratoTemp);
+  }
+
   function limparFiltros() {
     setPesquisaContrato("");
     setFiltroDividido("TODOS");
     setFiltroDivididoCom("TODOS");
     setFiltroVendedora("TODAS");
+    setFiltroDataInicialContrato("");
+    setFiltroDataFinalContrato("");
+    setDataInicialContratoTemp("");
+    setDataFinalContratoTemp("");
   }
 
   const totalPessoal = Number(dados?.meuResumo?.total || 0);
@@ -383,7 +417,9 @@ export default function MetasPage() {
     ? dados.comunicados
     : [];
 
-  const contratosVisiveis = useMemo(() => {
+
+
+const contratosVisiveis = useMemo(() => {
     const lista = dados?.ultimosContratos || [];
 
     let filtrados = podeGerenciar()
@@ -427,6 +463,20 @@ export default function MetasPage() {
       );
     }
 
+    if (filtroDataInicialContrato) {
+      filtrados = filtrados.filter((contrato: any) => {
+        const dataContrato = dataContratoISO(contrato.dataVenda || contrato.createdAt);
+        return dataContrato >= filtroDataInicialContrato;
+      });
+    }
+
+    if (filtroDataFinalContrato) {
+      filtrados = filtrados.filter((contrato: any) => {
+        const dataContrato = dataContratoISO(contrato.dataVenda || contrato.createdAt);
+        return dataContrato <= filtroDataFinalContrato;
+      });
+    }
+
     if (pesquisaContrato.trim()) {
       const termo = pesquisaContrato.trim().toUpperCase();
 
@@ -442,6 +492,11 @@ export default function MetasPage() {
           contrato.divididoCom,
           contrato.nomeConvenio,
           contrato.observacao,
+          contrato.unidadeOrigemNome,
+          contrato.modalidadeAnterior,
+          contrato.transferenciaUnidade ? "TRANSFERÊNCIA DE UNIDADE" : "",
+          contrato.acrescimoModalidade ? "ACRÉSCIMO DE MODALIDADE" : "",
+          contrato.trocaModalidade ? "TROCA DE MODALIDADE" : "",
         ]
           .join(" ")
           .toUpperCase();
@@ -463,6 +518,8 @@ export default function MetasPage() {
     filtroDivididoCom,
     filtroVendedora,
     pesquisaContrato,
+    filtroDataInicialContrato,
+    filtroDataFinalContrato,
   ]);
 
   const nomesDivididos = useMemo(() => {
@@ -1095,6 +1152,11 @@ export default function MetasPage() {
         "Vendedora",
         "Dividido",
         "Com quem",
+        "Transferência",
+        "Unidade origem",
+        "Acréscimo",
+        "Troca",
+        "Modalidade anterior",
         "Observação",
       ]],
       body: contratosPDF.map((contrato: any, index: number) => [
@@ -1108,6 +1170,11 @@ export default function MetasPage() {
         contrato.vendedora || "-",
         contrato.contratoDividido ? "Sim" : "Não",
         contrato.contratoDividido ? contrato.divididoCom || "-" : "-",
+        contrato.transferenciaUnidade ? "Sim" : "Não",
+        contrato.unidadeOrigemNome || "-",
+        contrato.acrescimoModalidade ? "Sim" : "Não",
+        contrato.trocaModalidade ? "Sim" : "Não",
+        contrato.modalidadeAnterior || "-",
         contrato.observacao || "-",
       ]),
       styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
@@ -1245,6 +1312,15 @@ export default function MetasPage() {
               setFiltroDivididoCom={setFiltroDivididoCom}
               filtroVendedora={filtroVendedora}
               setFiltroVendedora={setFiltroVendedora}
+              filtroDataInicialContrato={filtroDataInicialContrato}
+              setFiltroDataInicialContrato={setFiltroDataInicialContrato}
+              filtroDataFinalContrato={filtroDataFinalContrato}
+              setFiltroDataFinalContrato={setFiltroDataFinalContrato}
+              dataInicialContratoTemp={dataInicialContratoTemp}
+              setDataInicialContratoTemp={setDataInicialContratoTemp}
+              dataFinalContratoTemp={dataFinalContratoTemp}
+              setDataFinalContratoTemp={setDataFinalContratoTemp}
+              aplicarFiltroPeriodoContratos={aplicarFiltroPeriodoContratos}
               nomesDivididos={nomesDivididos}
               nomesVendedoras={nomesVendedoras}
               limparFiltros={limparFiltros}
@@ -1355,6 +1431,15 @@ export default function MetasPage() {
               setFiltroDivididoCom={setFiltroDivididoCom}
               filtroVendedora={filtroVendedora}
               setFiltroVendedora={setFiltroVendedora}
+              filtroDataInicialContrato={filtroDataInicialContrato}
+              setFiltroDataInicialContrato={setFiltroDataInicialContrato}
+              filtroDataFinalContrato={filtroDataFinalContrato}
+              setFiltroDataFinalContrato={setFiltroDataFinalContrato}
+              dataInicialContratoTemp={dataInicialContratoTemp}
+              setDataInicialContratoTemp={setDataInicialContratoTemp}
+              dataFinalContratoTemp={dataFinalContratoTemp}
+              setDataFinalContratoTemp={setDataFinalContratoTemp}
+              aplicarFiltroPeriodoContratos={aplicarFiltroPeriodoContratos}
               nomesDivididos={nomesDivididos}
               nomesVendedoras={nomesVendedoras}
               limparFiltros={limparFiltros}
@@ -1487,6 +1572,15 @@ function PainelAdminGeral({
   setFiltroDivididoCom,
   filtroVendedora,
   setFiltroVendedora,
+  filtroDataInicialContrato,
+  setFiltroDataInicialContrato,
+  filtroDataFinalContrato,
+  setFiltroDataFinalContrato,
+  dataInicialContratoTemp,
+  setDataInicialContratoTemp,
+  dataFinalContratoTemp,
+  setDataFinalContratoTemp,
+  aplicarFiltroPeriodoContratos,
   nomesDivididos,
   nomesVendedoras,
   limparFiltros,
@@ -1522,7 +1616,8 @@ function PainelAdminGeral({
         chave,
         nome: nomeBonito(nomeOriginal),
         proprios: 0,
-        meiosPorParceiro: {},
+        meios: 0,
+        meiosPendentes: 0,
         total: 0,
       };
     }
@@ -1538,18 +1633,13 @@ function PainelAdminGeral({
       .forEach((contrato: any) => {
         const vendedoraOriginal = contrato.vendedora || "NÃO INFORMADO";
         const divididoComOriginal = contrato.divididoCom || "";
-        const vendedoraKey = normalizarNome(vendedoraOriginal) || "NÃO INFORMADO";
         const divididoComKey = normalizarNome(divididoComOriginal);
 
         if (contrato.contratoDividido && divididoComKey) {
-          const vendedora = garantirRanking(mapa, vendedoraOriginal);
-          const parceira = garantirRanking(mapa, divididoComOriginal);
-
-          vendedora.meiosPorParceiro[divididoComKey] =
-            Number(vendedora.meiosPorParceiro[divididoComKey] || 0) + 1;
-
-          parceira.meiosPorParceiro[vendedoraKey] =
-            Number(parceira.meiosPorParceiro[vendedoraKey] || 0) + 1;
+          // REGRA NOVA:
+          // todos os meios se somam, independente de com quem foi dividido.
+          garantirRanking(mapa, vendedoraOriginal).meios += 1;
+          garantirRanking(mapa, divididoComOriginal).meios += 1;
         } else {
           garantirRanking(mapa, vendedoraOriginal).proprios += 1;
         }
@@ -1557,19 +1647,22 @@ function PainelAdminGeral({
 
     return Object.values(mapa)
       .map((item: any) => {
-        const creditosDivididos = Object.values(item.meiosPorParceiro || {}).reduce(
-          (total: number, qtd: any) => total + Math.floor(Number(qtd || 0) / 2),
-          0
-        );
+        const creditosDivididos = Math.floor(Number(item.meios || 0) / 2);
+        const meiosPendentes = Number(item.meios || 0) % 2;
 
         return {
           ...item,
           divididosCreditados: creditosDivididos,
+          meiosPendentes,
           total: Number(item.proprios || 0) + creditosDivididos,
         };
       })
-      .filter((item: any) => Number(item.total || 0) > 0)
-      .sort((a: any, b: any) => Number(b.total || 0) - Number(a.total || 0))
+      .filter((item: any) => Number(item.total || 0) > 0 || Number(item.meiosPendentes || 0) > 0)
+      .sort((a: any, b: any) => {
+        const total = Number(b.total || 0) - Number(a.total || 0);
+        if (total !== 0) return total;
+        return Number(b.meiosPendentes || 0) - Number(a.meiosPendentes || 0);
+      })
       .map((item: any, index) => ({ ...item, posicao: index + 1 }));
   }
 
@@ -1600,9 +1693,12 @@ function PainelAdminGeral({
   };
 
   const tiposUnidade = {
-    novos: contratosUnidade.filter((c: any) => String(c.tipoContrato || "").toUpperCase() === "NOVO").length,
-    retornos: contratosUnidade.filter((c: any) => String(c.tipoContrato || "").toUpperCase() === "RETORNO").length,
-    renovacoes: contratosUnidade.filter((c: any) => String(c.tipoContrato || "").toUpperCase() === "RENOVAÇÃO").length,
+    novos: contratosUnidade.filter((c: any) => contratoContaMetaGeralTela(c) && String(c.tipoContrato || "").toUpperCase() === "NOVO").length,
+    retornos: contratosUnidade.filter((c: any) => contratoContaMetaGeralTela(c) && String(c.tipoContrato || "").toUpperCase() === "RETORNO").length,
+    renovacoes: contratosUnidade.filter((c: any) => contratoContaMetaGeralTela(c) && String(c.tipoContrato || "").toUpperCase() === "RENOVAÇÃO").length,
+    transferenciasUnidade: contratosUnidade.filter((c: any) => contratoContaMetaGeralTela(c) && c.transferenciaUnidade).length,
+    trocasModalidade: contratosUnidade.filter((c: any) => c.trocaModalidade).length,
+    acrescimosModalidade: contratosUnidade.filter((c: any) => contratoContaMetaGeralTela(c) && c.acrescimoModalidade).length,
   };
 
   return (
@@ -1660,6 +1756,9 @@ function PainelAdminGeral({
             { label: "Novos", valor: tiposUnidade.novos, cor: "text-green-700" },
             { label: "Retornos", valor: tiposUnidade.retornos, cor: "text-purple-700" },
             { label: "Renovações", valor: tiposUnidade.renovacoes, cor: "text-orange-600" },
+            { label: "Transferências", valor: tiposUnidade.transferenciasUnidade, cor: "text-blue-700" },
+            { label: "Trocas", valor: tiposUnidade.trocasModalidade, cor: "text-red-600" },
+            { label: "Acréscimos", valor: tiposUnidade.acrescimosModalidade, cor: "text-emerald-700" },
           ]}
         />
 
@@ -1763,6 +1862,15 @@ function PainelAdminGeral({
         setFiltroDivididoCom={setFiltroDivididoCom}
         filtroVendedora={filtroVendedora}
         setFiltroVendedora={setFiltroVendedora}
+        filtroDataInicialContrato={filtroDataInicialContrato}
+        setFiltroDataInicialContrato={setFiltroDataInicialContrato}
+        filtroDataFinalContrato={filtroDataFinalContrato}
+        setFiltroDataFinalContrato={setFiltroDataFinalContrato}
+        dataInicialContratoTemp={dataInicialContratoTemp}
+        setDataInicialContratoTemp={setDataInicialContratoTemp}
+        dataFinalContratoTemp={dataFinalContratoTemp}
+        setDataFinalContratoTemp={setDataFinalContratoTemp}
+        aplicarFiltroPeriodoContratos={aplicarFiltroPeriodoContratos}
         nomesDivididos={nomesDivididos}
         nomesVendedoras={nomesVendedoras}
         limparFiltros={limparFiltros}
@@ -2251,6 +2359,21 @@ function CardMetaCircular({
     </div>
   );
 }
+
+
+function contratoContaMetaGeralTela(contrato: any) {
+  if (contrato?.cancelado) return false;
+  if (contrato?.trocaModalidade) return false;
+  return true;
+}
+
+function contratoContaComissaoTela(contrato: any) {
+  if (!contratoContaMetaGeralTela(contrato)) return false;
+  if (contrato?.transferenciaUnidade) return false;
+  if (String(contrato?.permanencia || "").toUpperCase() === "MENSAL") return false;
+  return true;
+}
+
 
 function CardPosicao({
   posicao,
@@ -2855,6 +2978,15 @@ function ContratosTabela({
   setFiltroDivididoCom,
   filtroVendedora,
   setFiltroVendedora,
+  filtroDataInicialContrato,
+  setFiltroDataInicialContrato,
+  filtroDataFinalContrato,
+  setFiltroDataFinalContrato,
+  dataInicialContratoTemp,
+  setDataInicialContratoTemp,
+  dataFinalContratoTemp,
+  setDataFinalContratoTemp,
+  aplicarFiltroPeriodoContratos,
   nomesDivididos,
   nomesVendedoras,
   limparFiltros,
@@ -2878,6 +3010,31 @@ function ContratosTabela({
             placeholder="Pesquisar contrato..."
             className="border rounded-xl px-3 py-2 text-sm w-72"
           />
+
+          <input
+            type="date"
+            value={dataInicialContratoTemp}
+            onChange={(e) => setDataInicialContratoTemp(e.target.value)}
+            title="Data inicial"
+            className="border rounded-xl px-3 py-2 text-sm"
+          />
+
+          <input
+            type="date"
+            value={dataFinalContratoTemp}
+            onChange={(e) => setDataFinalContratoTemp(e.target.value)}
+            title="Data final"
+            className="border rounded-xl px-3 py-2 text-sm"
+          />
+
+          <button
+            type="button"
+            onClick={aplicarFiltroPeriodoContratos}
+            className="border border-blue-600 bg-blue-600 text-white rounded-xl px-4 py-2 text-sm font-bold"
+            title="Aplicar período"
+          >
+            Filtrar
+          </button>
 
           <select
             value={filtroVendedora}
@@ -2961,6 +3118,26 @@ function ContratosTabela({
                 <td className="p-2">{contrato.plano}</td>
                 <td className="p-2">{contrato.tipoContrato}</td>
                 <td className="p-2">{contrato.permanencia}</td>
+                <td className="p-2">
+                  <div className="flex flex-col gap-1 text-xs font-black">
+                    {contrato.transferenciaUnidade && (
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-700">
+                        Transferência: {contrato.unidadeOrigemNome || "-"}
+                      </span>
+                    )}
+                    {contrato.acrescimoModalidade && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
+                        Acréscimo: {contrato.modalidadeAnterior || "-"} + {contrato.plano || "-"}
+                      </span>
+                    )}
+                    {contrato.trocaModalidade && (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-red-700">
+                        Trocou {contrato.modalidadeAnterior || "-"} por {contrato.plano || "-"}
+                      </span>
+                    )}
+                    {!contrato.transferenciaUnidade && !contrato.acrescimoModalidade && !contrato.trocaModalidade && "-"}
+                  </div>
+                </td>
                 <td className="p-2">
   {contrato.contratoDividido &&
    String(contrato.divididoCom || "").toUpperCase() ===
@@ -3092,6 +3269,18 @@ function ModalContrato({
             valor={contrato.contratoDividido ? "Sim" : "Não"}
           />
           <Info titulo="Dividido com" valor={contrato.divididoCom || "-"} />
+          <Info
+            titulo="Transferência de unidade"
+            valor={contrato.transferenciaUnidade ? `Sim - origem: ${contrato.unidadeOrigemNome || "-"}` : "Não"}
+          />
+          <Info
+            titulo="Acréscimo de modalidade"
+            valor={contrato.acrescimoModalidade ? `${contrato.modalidadeAnterior || "-"} + ${contrato.plano || "-"}` : "Não"}
+          />
+          <Info
+            titulo="Troca de modalidade"
+            valor={contrato.trocaModalidade ? `Trocou ${contrato.modalidadeAnterior || "-"} por ${contrato.plano || "-"}` : "Não"}
+          />
         </div>
 
         <div className="mt-5">

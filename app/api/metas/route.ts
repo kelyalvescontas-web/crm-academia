@@ -178,16 +178,69 @@ function adicionarComunicado(lista: any[], dados: any) {
   });
 }
 
-function contratosCreditadosParaUsuario(contratos: any[], usuarioNome: string) {
+
+function permanenciaNormalizada(contrato: any) {
+  return String(contrato?.permanencia || "").toUpperCase().trim();
+}
+
+function isMensal(contrato: any) {
+  return permanenciaNormalizada(contrato) === "MENSAL";
+}
+
+function isTransferenciaUnidade(contrato: any) {
+  return contrato?.transferenciaUnidade === true || String(contrato?.transferenciaUnidade || "").toLowerCase() === "true";
+}
+
+function isAcrescimoModalidade(contrato: any) {
+  return contrato?.acrescimoModalidade === true || String(contrato?.acrescimoModalidade || "").toLowerCase() === "true";
+}
+
+function isTrocaModalidade(contrato: any) {
+  return contrato?.trocaModalidade === true || String(contrato?.trocaModalidade || "").toLowerCase() === "true";
+}
+
+function contaNaMetaGeral(contrato: any, unidadeAtualId?: number) {
+  if (contrato?.cancelado) return false;
+  if (isTrocaModalidade(contrato)) return false;
+
+  // Transferência aparece nos relatórios das duas unidades,
+  // mas só contabiliza meta na unidade destino, que é a unidadeId do contrato.
+  if (isTransferenciaUnidade(contrato) && unidadeAtualId) {
+    return Number(contrato.unidadeId) === Number(unidadeAtualId);
+  }
+
+  return true;
+}
+
+function contaNaComissao(contrato: any, unidadeAtualId?: number) {
+  if (!contaNaMetaGeral(contrato, unidadeAtualId)) return false;
+  if (isMensal(contrato)) return false;
+  if (isTransferenciaUnidade(contrato)) return false;
+  if (isTrocaModalidade(contrato)) return false;
+
+  return true;
+}
+
+
+function contratosCreditadosParaUsuario(
+  contratos: any[],
+  usuarioNome: string,
+  apenasValidos: boolean = false,
+  unidadeAtualId?: number
+) {
   const nomeUsuario = normalizarNome(usuarioNome);
 
-  const proprios = contratos.filter(
+  const contratosConsiderados = apenasValidos
+    ? contratos.filter((contrato) => contaNaComissao(contrato, unidadeAtualId))
+    : contratos.filter((contrato) => contaNaMetaGeral(contrato, unidadeAtualId));
+
+  const proprios = contratosConsiderados.filter(
     (contrato) =>
       normalizarNome(contrato.vendedora) === nomeUsuario &&
       !contrato.contratoDividido
   );
 
-  const divididos = contratos.filter((contrato) => {
+  const meiosDivididos = contratosConsiderados.filter((contrato) => {
     if (!contrato.contratoDividido) return false;
 
     const vendedora = normalizarNome(contrato.vendedora);
@@ -196,24 +249,9 @@ function contratosCreditadosParaUsuario(contratos: any[], usuarioNome: string) {
     return vendedora === nomeUsuario || divididoCom === nomeUsuario;
   });
 
-  const grupos: any = {};
+  const creditosDeMeios = Math.floor(meiosDivididos.length / 2);
 
-  divididos.forEach((contrato) => {
-    const vendedora = normalizarNome(contrato.vendedora);
-    const divididoCom = normalizarNome(contrato.divididoCom);
-    const parceiro = vendedora === nomeUsuario ? divididoCom : vendedora;
-
-    if (!parceiro) return;
-
-    if (!grupos[parceiro]) grupos[parceiro] = [];
-    grupos[parceiro].push(contrato);
-  });
-
-  const compartilhadosCreditados = Object.values(grupos).flatMap((lista: any) =>
-    lista.slice(0, Math.floor(lista.length / 2))
-  );
-
-  return [...proprios, ...compartilhadosCreditados];
+  return [...proprios, ...meiosDivididos.slice(0, creditosDeMeios)];
 }
 
 export async function GET(req: Request) {
@@ -276,7 +314,13 @@ export async function GET(req: Request) {
 
     const contratos = await prisma.contratoMeta.findMany({
       where: {
-        unidadeId,
+        OR: [
+          { unidadeId },
+          {
+            transferenciaUnidade: true,
+            unidadeOrigemId: unidadeId,
+          },
+        ],
         dataVenda: {
           gte: inicio,
           lte: fim,
@@ -288,47 +332,56 @@ export async function GET(req: Request) {
       ],
     });
 
-    const contratosTotais = contratos.length;
+    const contratosMetaGeral = contratos.filter((contrato) =>
+      contaNaMetaGeral(contrato, unidadeId)
+    );
 
-    const contratosSemMensal = contratos.filter(
-      (contrato) =>
-        String(contrato.permanencia || "").toUpperCase() !== "MENSAL"
-    ).length;
+    const contratosComissao = contratos.filter((contrato) =>
+      contaNaComissao(contrato, unidadeId)
+    );
 
-    const anual = contratos.filter(
+    const contratosTotais = contratosMetaGeral.length;
+
+    const contratosSemMensal = contratosComissao.length;
+
+    const anual = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.permanencia || "").toUpperCase() === "ANUAL"
     ).length;
 
-    const semestral = contratos.filter(
+    const semestral = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.permanencia || "").toUpperCase() === "SEMESTRAL"
     ).length;
 
-    const trimestral = contratos.filter(
+    const trimestral = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.permanencia || "").toUpperCase() === "TRIMESTRAL"
     ).length;
 
-    const mensal = contratos.filter(
+    const mensal = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.permanencia || "").toUpperCase() === "MENSAL"
     ).length;
 
-    const novos = contratos.filter(
+    const novos = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.tipoContrato || "").toUpperCase() === "NOVO"
     ).length;
 
-    const retornos = contratos.filter(
+    const retornos = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.tipoContrato || "").toUpperCase() === "RETORNO"
     ).length;
 
-    const renovacoes = contratos.filter(
+    const renovacoes = contratosMetaGeral.filter(
       (contrato) =>
         String(contrato.tipoContrato || "").toUpperCase() === "RENOVAÇÃO"
     ).length;
+
+    const transferenciasUnidade = contratosMetaGeral.filter(isTransferenciaUnidade).length;
+    const trocasModalidade = contratos.filter(isTrocaModalidade).length;
+    const acrescimosModalidade = contratosMetaGeral.filter(isAcrescimoModalidade).length;
 
     const convenios = contratos.filter((contrato) => contrato.convenio).length;
 
@@ -346,64 +399,51 @@ export async function GET(req: Request) {
           chave,
           nome: nomeBonito(nomeOriginal),
           proprios: 0,
-          meiosPorParceiro: {},
-          total: 0,
+          meios: 0,
         };
       }
 
       return rankingMap[chave];
     }
 
-    contratos
-      .filter(
-        (contrato) =>
-          String(contrato.permanencia || "").toUpperCase() !== "MENSAL"
-      )
-      .forEach((contrato) => {
-        const vendedoraOriginal = contrato.vendedora || "NÃO INFORMADO";
-        const divididoComOriginal = contrato.divididoCom || "";
-        const vendedoraKey =
-          normalizarNome(vendedoraOriginal) || "NÃO INFORMADO";
-        const divididoComKey = normalizarNome(divididoComOriginal);
+    contratosComissao.forEach((contrato) => {
+        const vendedora = contrato.vendedora || "NÃO INFORMADO";
+        const divididoCom = contrato.divididoCom || "";
 
-        if (contrato.contratoDividido && divididoComKey) {
-          const vendedora = garantirRanking(vendedoraOriginal);
-          const parceira = garantirRanking(divididoComOriginal);
-
-          vendedora.meiosPorParceiro[divididoComKey] =
-            Number(vendedora.meiosPorParceiro[divididoComKey] || 0) + 1;
-
-          parceira.meiosPorParceiro[vendedoraKey] =
-            Number(parceira.meiosPorParceiro[vendedoraKey] || 0) + 1;
+        if (contrato.contratoDividido && normalizarNome(divididoCom)) {
+          garantirRanking(vendedora).meios += 1;
+          garantirRanking(divididoCom).meios += 1;
         } else {
-          garantirRanking(vendedoraOriginal).proprios += 1;
+          garantirRanking(vendedora).proprios += 1;
         }
       });
 
     const ranking = Object.values(rankingMap)
       .map((item: any) => {
-        const divididosCreditados = Object.values(
-          item.meiosPorParceiro || {}
-        ).reduce(
-          (total: number, qtd: any) =>
-            total + Math.floor(Number(qtd || 0) / 2),
-          0
-        );
+        const divididosCreditados = Math.floor(Number(item.meios || 0) / 2);
+        const meiosPendentes = Number(item.meios || 0) % 2;
+        const total = Number(item.proprios || 0) + divididosCreditados;
 
         return {
           ...item,
+          total,
           divididosCreditados,
-          total: Number(item.proprios || 0) + divididosCreditados,
+          meiosPendentes,
         };
       })
-      .filter((item: any) => Number(item.total || 0) > 0)
-      .sort((a: any, b: any) => Number(b.total || 0) - Number(a.total || 0))
+      .filter((item: any) => Number(item.total || 0) > 0 || Number(item.meiosPendentes || 0) > 0)
+      .sort((a: any, b: any) => {
+        const total = Number(b.total || 0) - Number(a.total || 0);
+        if (total !== 0) return total;
+        return Number(b.meiosPendentes || 0) - Number(a.meiosPendentes || 0);
+      })
       .map((item: any, index) => ({
         posicao: index + 1,
         nome: item.nome,
         total: item.total,
         proprios: item.proprios,
         divididosCreditados: item.divididosCreditados,
+        meiosPendentes: item.meiosPendentes,
       }));
 
     const meusContratosVisiveis = contratos.filter((contrato) => {
@@ -418,11 +458,15 @@ export async function GET(req: Request) {
       );
     });
 
-    const meusContratos = contratosCreditadosParaUsuario(contratos, usuarioNome);
+    const meusContratos = contratosCreditadosParaUsuario(contratos, usuarioNome, false, unidadeId);
 
-    const meusContratosSemMensal = meusContratos.filter(
-      (contrato) =>
-        String(contrato.permanencia || "").toUpperCase() !== "MENSAL"
+    // Para contratos válidos da meta, mensal continua sem contar.
+    // Meio mensal também não entra na composição dos contratos válidos.
+    const meusContratosSemMensal = contratosCreditadosParaUsuario(
+      contratos,
+      usuarioNome,
+      true,
+      unidadeId
     );
 
     const meusAnual = meusContratos.filter(
@@ -629,11 +673,17 @@ export async function GET(req: Request) {
         novos,
         retornos,
         renovacoes,
+        transferenciasUnidade,
+        trocasModalidade,
+        acrescimosModalidade,
       },
 
       extras: {
         convenios,
         contratosDivididos,
+        transferenciasUnidade,
+        trocasModalidade,
+        acrescimosModalidade,
       },
 
       premiacaoEmpresa,

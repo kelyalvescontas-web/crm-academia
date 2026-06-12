@@ -57,7 +57,15 @@ export default function LoginPage() {
         localStorage.removeItem("lembrarAcesso");
       }
 
-      router.push("/");
+      const cargoUsuario = String(data.cargo || "").toUpperCase();
+
+      if (cargoUsuario === "NUTRICIONISTA") {
+        router.push("/agenda-nutricionista");
+      } else if (cargoUsuario === "INSTRUTOR") {
+        router.push("/calendario");
+      } else {
+        router.push("/");
+      }
     } catch (error) {
       console.log(error);
       alert("Erro ao fazer login");

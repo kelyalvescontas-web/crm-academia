@@ -216,81 +216,144 @@ export default function EditarAgendamentoNutricionistaPage() {
   }
 
   useEffect(() => {
-    const configSalva = localStorage.getItem(STORAGE_CONFIG);
-    if (configSalva) {
-      setConfig(JSON.parse(configSalva));
-    }
-
-    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
-    const encontrado = salvos.find((a) => a.id === id);
-
-    if (encontrado) {
-      setForm({
-        ...encontrado,
-        dataRetorno: encontrado.dataRetorno || somarDias(encontrado.dataConsulta, encontrado.diasRetorno || "30"),
-        horaRetorno: encontrado.horaRetorno || "",
-      });
-    }
+    carregarConfigAgenda();
+    carregarAgendamento();
   }, [id]);
 
-  function salvar() {
+  async function carregarConfigAgenda() {
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeSelecionada =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+
+      const response = await fetch(
+        `/api/agenda-nutricionista/configuracoes?unidadeId=${unidadeSelecionada}`,
+        { cache: "no-store" }
+      );
+
+      const data = await response.json();
+
+      if (!data?.error) {
+        setConfig({
+          horarios: data.horarios?.length ? data.horarios : horariosPadrao,
+          aviso: data.aviso || "",
+          bloqueios: Array.isArray(data.bloqueios) ? data.bloqueios : [],
+        });
+      }
+    } catch (error) {
+      console.log("Erro ao carregar configurações da nutricionista:", error);
+    }
+  }
+
+  async function carregarAgendamento() {
+    try {
+      const response = await fetch(`/api/agenda-nutricionista?id=${id}`, {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        alert(data.error || "Agendamento não encontrado.");
+        router.push("/agenda-nutricionista");
+        return;
+      }
+
+      setForm({
+        ...data,
+        id: String(data.id),
+        dataRetorno: data.dataRetorno || somarDias(data.dataConsulta, data.diasRetorno || "30"),
+        horaRetorno: data.horaRetorno || "",
+      });
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao carregar agendamento.");
+      router.push("/agenda-nutricionista");
+    }
+  }
+
+  async function salvar() {
     if (!form.nome.trim()) return alert("Preencha o nome do aluno.");
     if (!form.telefone.trim()) return alert("Preencha o telefone.");
-    if (!form.dataConsulta || !form.horaConsulta) return alert("Preencha data e horário da consulta.");
-
-    if (!horarioValido(config, form.dataConsulta, form.horaConsulta)) {
-      return alert("Este horário não está cadastrado nas configurações da agenda para esta data. Selecione um horário permitido.");
+    if (!form.dataConsulta || !form.horaConsulta) {
+      return alert("Preencha data e horário da consulta.");
     }
 
-    if (form.dataRetorno && form.horaRetorno && !horarioValido(config, form.dataRetorno, form.horaRetorno)) {
+    if (!horarioValido(config, form.dataConsulta, form.horaConsulta)) {
+      return alert(
+        "Este horário não está cadastrado nas configurações da agenda para esta data. Selecione um horário permitido."
+      );
+    }
+
+    if (
+      form.dataRetorno &&
+      form.horaRetorno &&
+      !horarioValido(config, form.dataRetorno, form.horaRetorno)
+    ) {
       return alert("O horário selecionado para retorno não está liberado nas configurações desta data.");
     }
 
-    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeSelecionada =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
 
-    const duplicado = salvos.find((a) => a.id !== id && a.dataConsulta === form.dataConsulta && a.horaConsulta === form.horaConsulta);
-    if (duplicado) return alert("Já existe uma consulta agendada neste horário.");
+      const response = await fetch("/api/agenda-nutricionista", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          id,
+          unidadeId: unidadeSelecionada ? Number(unidadeSelecionada) : null,
+          usuarioId: usuarioLogado.id,
+          usuarioNome: usuarioLogado.nome,
+          usuarioCargo: usuarioLogado.cargo,
+        }),
+      });
 
-    let atualizados = salvos.map((a) => (a.id === id ? { ...form, id } : a));
+      const data = await response.json();
 
-    if (form.dataRetorno && form.horaRetorno) {
-      const jaExisteRetorno = atualizados.some((a) => a.id !== id && a.dataConsulta === form.dataRetorno && a.horaConsulta === form.horaRetorno);
-
-      if (jaExisteRetorno) {
-        return alert("Não foi possível agendar o retorno automaticamente porque já existe consulta nesse horário de retorno.");
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao editar agendamento");
+        return;
       }
 
-      const retornoExistenteIndex = atualizados.findIndex((a) => a.id === `${id}-retorno`);
-
-      const retorno: Agendamento = {
-        ...form,
-        id: `${id}-retorno`,
-        dataConsulta: form.dataRetorno,
-        horaConsulta: form.horaRetorno,
-        tipoAtendimento: ["Retorno"],
-        tipoConsulta: "Retorno",
-        statusPresenca: "Aguardando confirmação",
-        statusPagamento: form.statusPagamento,
-        observacoes: `Retorno automático de ${form.nome}. Consulta original: ${formatarDataBR(form.dataConsulta)} às ${form.horaConsulta}.`,
-        converteuPlanoPago: false,
-        planoConvertido: "",
-        dataConversao: "",
-        vendedoraConversao: "",
-        createdAt: new Date().toISOString(),
-      };
-
-      if (retornoExistenteIndex >= 0) {
-        atualizados[retornoExistenteIndex] = retorno;
-      } else {
-        atualizados = [...atualizados, retorno];
+      if (form.dataRetorno && form.horaRetorno) {
+        await fetch("/api/agenda-nutricionista", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            id: undefined,
+            dataConsulta: form.dataRetorno,
+            horaConsulta: form.horaRetorno,
+            tipoAtendimento: ["Retorno"],
+            tipoConsulta: "Retorno",
+            observacoes: `Retorno automático de ${form.nome}. Consulta original: ${formatarDataBR(form.dataConsulta)} às ${form.horaConsulta}.`,
+            converteuPlanoPago: false,
+            planoConvertido: "",
+            dataConversao: "",
+            vendedoraConversao: "",
+            unidadeId: unidadeSelecionada ? Number(unidadeSelecionada) : null,
+            usuarioId: usuarioLogado.id,
+            usuarioNome: usuarioLogado.nome,
+            usuarioCargo: usuarioLogado.cargo,
+          }),
+        });
       }
+
+      router.push("/agenda-nutricionista");
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao editar agendamento");
     }
-
-    localStorage.setItem(STORAGE_AGENDAMENTOS, JSON.stringify(atualizados));
-    router.push("/agenda-nutricionista");
   }
 
-  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
+  const dataFormatada  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
   const mensagemConfirmacao = `Olá, ${primeiroNome(form.nome)}! Tudo bem?\nPosso confirmar sua consulta com nossa nutricionista, dia *${dataFormatada}* às *${form.horaConsulta}hs*?\n\nLembrando que a *tolerância de atraso é 10 minutos*, caso não consiga comparecer pedimos que avise com no mínimo 3 horas de antecedência, caso contrário a consulta será dada como feita.\n\n*Não é recomendado fazer exercícios físicos antes da consulta!*`;
   const mensagemCardapio = `Olá, ${primeiroNome(form.nome)}! Tudo bem?\nEstou te enviando o seu *cardápio* referente à consulta realizada em *${dataFormatada}*.\n\nLembre-se: cada pequena escolha feita hoje é um passo em direção aos seus objetivos. Mantenha o foco, confie no processo e conte conosco nessa jornada de transformação!\n\nQualquer dúvida, estou à disposição para ajudar.\nAtenciosamente,\nAcademia Prix`;
   const mensagemBio = `Olá, ${primeiroNome(form.nome)}!\nSegue em anexo sua *Avaliação de Bioimpedância* referente ao atendimento do dia *${dataFormatada}*.\n\nContinue firme nos seus objetivos! A consistência de hoje é o resultado de amanhã.\nQualquer dúvida, conte conosco.\nAcademia Prix`;

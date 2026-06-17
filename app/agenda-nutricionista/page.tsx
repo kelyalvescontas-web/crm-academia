@@ -267,13 +267,10 @@ export default function AgendaNutricionistaPage() {
 
   useEffect(() => {
     carregarConfiguracoesMensagens();
+    carregarConfigAgenda();
+    carregarAgendamentos();
 
-    const salvos = localStorage.getItem(STORAGE_AGENDAMENTOS);
-    const configSalva = localStorage.getItem(STORAGE_CONFIG);
     const chatSalvo = localStorage.getItem(STORAGE_CHAT);
-
-    if (salvos) setAgendamentos(JSON.parse(salvos));
-    if (configSalva) setConfig(JSON.parse(configSalva));
 
     if (chatSalvo) {
       const limpo = limparChat24h(JSON.parse(chatSalvo));
@@ -282,6 +279,61 @@ export default function AgendaNutricionistaPage() {
       quantidadeChatAnterior.current = limpo.length;
     }
   }, []);
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      carregarAgendamentos(false);
+    }, 10000);
+
+    return () => clearInterval(intervalo);
+  }, []);
+
+  async function carregarAgendamentos(mostrarErro = true) {
+    try {
+      const response = await fetch("/api/agenda-nutricionista", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        if (mostrarErro) alert(data.error || "Erro ao carregar agenda nutricionista.");
+        return;
+      }
+
+      setAgendamentos(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.log(error);
+      if (mostrarErro) alert("Erro ao carregar agenda nutricionista.");
+    }
+  }
+
+  async function carregarConfigAgenda() {
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeSelecionada =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+
+      const response = await fetch(
+        `/api/agenda-nutricionista/configuracoes?unidadeId=${unidadeSelecionada}`,
+        { cache: "no-store" }
+      );
+
+      const data = await response.json();
+
+      if (!data?.error) {
+        setConfig({
+          horarios: data.horarios?.length ? data.horarios : horariosPadrao,
+          aviso: data.aviso || "",
+          bloqueios: Array.isArray(data.bloqueios) ? data.bloqueios : [],
+        });
+      }
+    } catch (error) {
+      console.log("Erro ao carregar configurações da agenda nutricionista:", error);
+    }
+  }
 
   useEffect(() => {
     const intervalo = setInterval(() => {
@@ -380,12 +432,32 @@ export default function AgendaNutricionistaPage() {
     setMensagemChat("");
   }
 
-  function editarAviso() {
+  async function editarAviso() {
     const novoAviso = prompt("Digite o aviso da nutricionista:", config.aviso);
     if (novoAviso === null) return;
+
     const atualizado = { ...config, aviso: novoAviso };
     setConfig(atualizado);
-    localStorage.setItem(STORAGE_CONFIG, JSON.stringify(atualizado));
+
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeSelecionada =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+
+      await fetch("/api/agenda-nutricionista/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...atualizado,
+          unidadeId: unidadeSelecionada ? Number(unidadeSelecionada) : null,
+          usuarioNome: usuarioLogado.nome || "",
+        }),
+      });
+    } catch (error) {
+      console.log("Erro ao salvar aviso da nutricionista:", error);
+    }
   }
 
   function agendamentoDoHorario(hora: string) {
@@ -411,13 +483,30 @@ export default function AgendaNutricionistaPage() {
     );
   }
 
-  function excluirAgendamento(id: string) {
+  async function excluirAgendamento(id: string) {
     const confirmar = confirm("Tem certeza que deseja excluir este agendamento?");
     if (!confirmar) return;
 
-    const atualizados = agendamentos.filter((item) => item.id !== id);
-    setAgendamentos(atualizados);
-    localStorage.setItem(STORAGE_AGENDAMENTOS, JSON.stringify(atualizados));
+    try {
+      const response = await fetch("/api/agenda-nutricionista", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao excluir agendamento.");
+        return;
+      }
+
+      const atualizados = agendamentos.filter((item) => item.id !== id);
+      setAgendamentos(atualizados);
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao excluir agendamento.");
+    }
   }
 
   function irParaAgendamento(a: Agendamento) {

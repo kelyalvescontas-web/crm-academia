@@ -222,17 +222,47 @@ export default function NovoAgendamentoNutricionistaPage() {
     atualizar(campo, doc);
   }
 
-  function salvar() {
+  async function salvar() {
     if (!form.nome.trim()) return alert("Preencha o nome do aluno.");
     if (!form.telefone.trim()) return alert("Preencha o telefone.");
-    if (!form.dataConsulta || !form.horaConsulta) return alert("Preencha data e horário da consulta.");
+    if (!form.dataConsulta || !form.horaConsulta) {
+      return alert("Preencha data e horário da consulta.");
+    }
 
-    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
-    localStorage.setItem(STORAGE_AGENDAMENTOS, JSON.stringify([form, ...salvos]));
-    router.push("/agenda-nutricionista");
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeSelecionada =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+
+      const response = await fetch("/api/agenda-nutricionista", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          unidadeId: unidadeSelecionada ? Number(unidadeSelecionada) : null,
+          usuarioId: usuarioLogado.id,
+          usuarioNome: usuarioLogado.nome,
+          usuarioCargo: usuarioLogado.cargo,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao salvar agendamento");
+        return;
+      }
+
+      router.push("/agenda-nutricionista");
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao salvar agendamento");
+    }
   }
 
-  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
+  const dataFormatada  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
 
   const mensagemConfirmacao = aplicarModeloNutri(
     configuracaoMensagens?.mensagemNutriConfirmacao || mensagensNutriPadrao.mensagemNutriConfirmacao,

@@ -336,6 +336,7 @@ model AgendaNutricionista {
 
   diasParaRetorno Int?
   dataRetorno     String?
+  horaRetorno     String?
 
   cardapioPronto  Boolean @default(false)
   cardapioEnviado Boolean @default(false)
@@ -400,8 +401,10 @@ model AgendaNutricionistaHorario {
 model AgendaNutricionistaBloqueio {
   id Int @id @default(autoincrement())
 
-  data   String
-  motivo String
+  data              String
+  motivo            String
+  tipo              String  @default("Feriado")
+  horariosLiberados String?
 
   diaTodo       Boolean @default(true)
   horarioInicio String?
@@ -565,4 +568,51 @@ model Modalidade {
 
   @@index([nome])
   @@index([unidadeId])
+}
+
+// =============================
+// USUÁRIOS ONLINE E CHAT GLOBAL
+// =============================
+
+model UsuarioOnline {
+  id Int @id @default(autoincrement())
+
+  usuarioId    Int
+  usuarioNome  String
+  usuarioCargo String?
+  fotoUrl      String?
+
+  unidadeId Int?
+  lastSeen  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId])
+  @@index([lastSeen])
+  @@index([unidadeId])
+}
+
+model ChatMensagem {
+  id Int @id @default(autoincrement())
+
+  remetenteId   Int
+  remetenteNome String
+  remetenteFoto String?
+
+  destinatarioId   Int?
+  destinatarioNome String?
+
+  grupo     Boolean @default(false)
+  grupoNome String?
+
+  mensagem String
+  lida     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([remetenteId])
+  @@index([destinatarioId])
+  @@index([grupo])
+  @@index([createdAt])
 }

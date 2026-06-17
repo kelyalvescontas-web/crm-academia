@@ -353,7 +353,7 @@ export default function EditarAgendamentoNutricionistaPage() {
     }
   }
 
-  const dataFormatada  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
+ const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
   const mensagemConfirmacao = `Olá, ${primeiroNome(form.nome)}! Tudo bem?\nPosso confirmar sua consulta com nossa nutricionista, dia *${dataFormatada}* às *${form.horaConsulta}hs*?\n\nLembrando que a *tolerância de atraso é 10 minutos*, caso não consiga comparecer pedimos que avise com no mínimo 3 horas de antecedência, caso contrário a consulta será dada como feita.\n\n*Não é recomendado fazer exercícios físicos antes da consulta!*`;
   const mensagemCardapio = `Olá, ${primeiroNome(form.nome)}! Tudo bem?\nEstou te enviando o seu *cardápio* referente à consulta realizada em *${dataFormatada}*.\n\nLembre-se: cada pequena escolha feita hoje é um passo em direção aos seus objetivos. Mantenha o foco, confie no processo e conte conosco nessa jornada de transformação!\n\nQualquer dúvida, estou à disposição para ajudar.\nAtenciosamente,\nAcademia Prix`;
   const mensagemBio = `Olá, ${primeiroNome(form.nome)}!\nSegue em anexo sua *Avaliação de Bioimpedância* referente ao atendimento do dia *${dataFormatada}*.\n\nContinue firme nos seus objetivos! A consistência de hoje é o resultado de amanhã.\nQualquer dúvida, conte conosco.\nAcademia Prix`;

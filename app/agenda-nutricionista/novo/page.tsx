@@ -262,7 +262,7 @@ export default function NovoAgendamentoNutricionistaPage() {
     }
   }
 
-  const dataFormatada  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
+ const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
 
   const mensagemConfirmacao = aplicarModeloNutri(
     configuracaoMensagens?.mensagemNutriConfirmacao || mensagensNutriPadrao.mensagemNutriConfirmacao,

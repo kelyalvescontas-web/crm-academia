@@ -1,5 +1,3 @@
-import AgendaPessoalNotificacoesGlobal from "@/components/AgendaPessoalNotificacoesGlobal";
-
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -27,10 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body>
-        {children}
-        <AgendaPessoalNotificacoesGlobal />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

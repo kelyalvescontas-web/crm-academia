@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { MdArrowBack, MdDeleteOutline, MdDownload, MdOutlineWhatsapp, MdSave } from "react-icons/md";
 
@@ -137,8 +137,9 @@ function baixarDocumento(doc?: Documento | null) {
   a.remove();
 }
 
-export default function NovoAgendamentoNutricionistaPage() {
+function NovoAgendamentoNutricionistaConteudo() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [configuracaoMensagens, setConfiguracaoMensagens] = useState<any>(null);
   const [form, setForm] = useState<Agendamento>({
     id: crypto.randomUUID(),
@@ -153,8 +154,8 @@ export default function NovoAgendamentoNutricionistaPage() {
     statusPagamento: "Free",
     quemAgendou: "",
     tipoAtendimento: ["Primeira Consulta"],
-    diasRetorno: "30",
-    dataRetorno: somarDias(hojeISO(), "30"),
+    diasRetorno: "",
+    dataRetorno: "",
     cardapioPronto: false,
     cardapioEnviado: false,
     bioPronta: false,
@@ -173,6 +174,19 @@ export default function NovoAgendamentoNutricionistaPage() {
   useEffect(() => {
     carregarConfiguracoesMensagens();
   }, []);
+
+  useEffect(() => {
+    const dataParam = searchParams.get("data");
+    const horaParam = searchParams.get("hora");
+
+    if (!dataParam && !horaParam) return;
+
+    setForm((atual) => ({
+      ...atual,
+      dataConsulta: dataParam || atual.dataConsulta,
+      horaConsulta: horaParam || atual.horaConsulta,
+    }));
+  }, [searchParams]);
 
   async function carregarConfiguracoesMensagens() {
     const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
@@ -198,12 +212,29 @@ export default function NovoAgendamentoNutricionistaPage() {
     }
   }
 
+  function calcularDataRetorno(dataBase: string, dias: string) {
+    const quantidade = Number(String(dias || "").trim());
+    if (!dataBase || !Number.isFinite(quantidade) || quantidade <= 0) return "";
+
+    const data = new Date(`${dataBase}T12:00:00`);
+    data.setDate(data.getDate() + quantidade);
+    return data.toISOString().slice(0, 10);
+  }
+
   function atualizar(campo: keyof Agendamento, valor: any) {
     setForm((atual) => {
       const novo = { ...atual, [campo]: valor } as Agendamento;
-      if (campo === "dataConsulta" || campo === "diasRetorno") {
-        novo.dataRetorno = somarDias(campo === "dataConsulta" ? valor : atual.dataConsulta, campo === "diasRetorno" ? valor : atual.diasRetorno);
+
+      // Só calcula a data de retorno quando a equipe preencher/alterar os dias.
+      // Ao abrir um cadastro salvo, nada é recalculado automaticamente.
+      if (campo === "diasRetorno") {
+        novo.dataRetorno = calcularDataRetorno(novo.dataConsulta, String(valor || ""));
       }
+
+      if (campo === "dataConsulta" && novo.diasRetorno) {
+        novo.dataRetorno = calcularDataRetorno(String(valor || ""), novo.diasRetorno);
+      }
+
       return novo;
     });
   }
@@ -222,47 +253,17 @@ export default function NovoAgendamentoNutricionistaPage() {
     atualizar(campo, doc);
   }
 
-  async function salvar() {
+  function salvar() {
     if (!form.nome.trim()) return alert("Preencha o nome do aluno.");
     if (!form.telefone.trim()) return alert("Preencha o telefone.");
-    if (!form.dataConsulta || !form.horaConsulta) {
-      return alert("Preencha data e horário da consulta.");
-    }
+    if (!form.dataConsulta || !form.horaConsulta) return alert("Preencha data e horário da consulta.");
 
-    try {
-      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
-      const unidadeSelecionada =
-        usuarioLogado.cargo === "ADMIN_GERAL"
-          ? localStorage.getItem("unidadeSelecionadaId")
-          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
-
-      const response = await fetch("/api/agenda-nutricionista", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          unidadeId: unidadeSelecionada ? Number(unidadeSelecionada) : null,
-          usuarioId: usuarioLogado.id,
-          usuarioNome: usuarioLogado.nome,
-          usuarioCargo: usuarioLogado.cargo,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        alert(data.error || "Erro ao salvar agendamento");
-        return;
-      }
-
-      router.push("/agenda-nutricionista");
-    } catch (error) {
-      console.log(error);
-      alert("Erro ao salvar agendamento");
-    }
+    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
+    localStorage.setItem(STORAGE_AGENDAMENTOS, JSON.stringify([form, ...salvos]));
+    router.push("/agenda-nutricionista");
   }
 
- const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
+  const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);
 
   const mensagemConfirmacao = aplicarModeloNutri(
     configuracaoMensagens?.mensagemNutriConfirmacao || mensagensNutriPadrao.mensagemNutriConfirmacao,
@@ -306,6 +307,25 @@ export default function NovoAgendamentoNutricionistaPage() {
         />
       </main>
     </div>
+  );
+}
+
+export default function NovoAgendamentoNutricionistaPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen bg-slate-100 text-slate-900">
+          <Sidebar />
+          <main className="flex-1 p-6">
+            <div className="rounded-2xl bg-white p-6 font-bold text-slate-700 shadow-sm">
+              Carregando agendamento...
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <NovoAgendamentoNutricionistaConteudo />
+    </Suspense>
   );
 }
 

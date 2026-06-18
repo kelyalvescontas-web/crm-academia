@@ -94,9 +94,10 @@ export default function AgendaPessoalNotificacoesGlobal() {
 
     buscarNotificacoes();
 
+    // Economia de consumo: consulta a cada 5 minutos, não em tempo real.
     const intervalo = setInterval(() => {
       buscarNotificacoes();
-    }, 15000);
+    }, 300000);
 
     return () => clearInterval(intervalo);
   }, [usuario?.id]);
@@ -290,6 +291,7 @@ export default function AgendaPessoalNotificacoesGlobal() {
           onClick={() => adiar(15)}
           className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200"
         >
+          <MdSnooze className="mr-1 inline" />
           Adiar 15 min
         </button>
       </div>

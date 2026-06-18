@@ -280,13 +280,8 @@ export default function AgendaNutricionistaPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const intervalo = setInterval(() => {
-      carregarAgendamentos(false);
-    }, 10000);
-
-    return () => clearInterval(intervalo);
-  }, []);
+  // Atualização automática removida para economizar créditos da hospedagem.
+  // Use o botão "Atualizar Agenda" para recarregar os agendamentos quando precisar.
 
   async function carregarAgendamentos(mostrarErro = true) {
     try {
@@ -547,9 +542,12 @@ export default function AgendaNutricionistaPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <Link href="/agenda-nutricionista/configuracoes" className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-center font-semibold">Configurações de Horários</Link>
-            <Link href="/agenda-nutricionista/novo" className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-center font-semibold text-white">+ Novo Agendamento</Link>
+          <div className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="flex gap-3">
+              <Link href="/agenda-nutricionista/configuracoes" className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-center font-semibold">Configurações de Horários</Link>
+              <button type="button" onClick={() => carregarAgendamentos(true)} className="flex-1 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-center font-semibold text-blue-700">Atualizar Agenda</button>
+            </div>
+            <Link href="/agenda-nutricionista/novo" className="w-full rounded-xl bg-green-600 px-4 py-3 text-center font-semibold text-white hover:bg-green-700">+ Adicionar Consulta</Link>
           </div>
         </section>
 
@@ -768,7 +766,15 @@ export default function AgendaNutricionistaPage() {
                               <Link href={`/agenda-nutricionista/${a.id}/editar`} title="Editar" className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-700 transition hover:bg-amber-100"><MdEdit className="text-lg" /></Link>
                               <button type="button" onClick={() => excluirAgendamento(a.id)} title="Excluir" className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition hover:bg-red-100"><MdDelete className="text-lg" /></button>
                             </div>
-                          ) : "-"}
+                          ) : (
+                            <Link
+                              href={`/agenda-nutricionista/novo?data=${data}&hora=${hora}`}
+                              title="Agendar consulta neste horário"
+                              className="inline-flex items-center justify-center rounded-lg border border-green-300 bg-green-100 px-3 py-2 text-xs font-black text-green-700 transition hover:bg-green-200"
+                            >
+                              + Agendar
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     );

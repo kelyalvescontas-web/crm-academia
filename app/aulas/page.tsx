@@ -21,6 +21,9 @@ export default function AulasPage() {
   const [telefone, setTelefone] = useState("");
   const [data, setData] = useState("");
   const [horario, setHorario] = useState("");
+  const [dataOriginal, setDataOriginal] = useState("");
+  const [dataRemarcada, setDataRemarcada] = useState("");
+  const [remarcadoPor, setRemarcadoPor] = useState("");
   const [modalidade, setModalidade] = useState("MUSCULAÇÃO");
   const [colaboradora, setColaboradora] = useState("");
   const [observacoes, setObservacoes] = useState("");
@@ -155,6 +158,9 @@ export default function AulasPage() {
     setTelefone("");
     setData("");
     setHorario("");
+    setDataOriginal("");
+    setDataRemarcada("");
+    setRemarcadoPor("");
     setModalidade("MUSCULAÇÃO");
     setColaboradora("");
     setObservacoes("");
@@ -177,7 +183,7 @@ export default function AulasPage() {
     if (veio) return "COMPARECEU";
     if (faltou) return "FALTOU";
     if (cancelou) return "CANCELOU";
-    if (remarcou) return "REMARCOU";
+    if (remarcou) return "REMARCADO";
     return "AGENDADA";
   }
 
@@ -188,7 +194,7 @@ export default function AulasPage() {
     if (s === "COMPARECEU") return "#2563eb";
     if (s === "FALTOU") return "#dc2626";
     if (s === "CANCELOU") return "#9333ea";
-    if (s === "REMARCOU") return "#dc2626";
+    if (s === "REMARCOU" || s === "REMARCADO") return "#dc2626";
 
     return "#d97706";
   }
@@ -229,6 +235,8 @@ export default function AulasPage() {
       const usuarioLogado = JSON.parse(
   localStorage.getItem("usuario") || "{}"
 );
+      const novaDataRemarcada = remarcou ? dataRemarcada : "";
+      const dataAnteriorRemarcacao = remarcou ? (dataOriginal || data) : "";
       const dados = {
   usuarioId: usuarioLogado.id,
   usuarioNome: usuarioLogado.nome,
@@ -239,8 +247,11 @@ export default function AulasPage() {
 
   nomeAluno: nomeAluno.trim().toUpperCase(),
   telefone: formatarTelefone(telefone.trim()),
-  data,
+  data: novaDataRemarcada || data,
   horario,
+  dataOriginal: dataAnteriorRemarcacao,
+  dataRemarcada: novaDataRemarcada,
+  remarcadoPor: remarcou ? remarcadoPor.trim().toUpperCase() : "",
   modalidade,
   colaboradora: colaboradora.trim().toUpperCase(),
   observacoes: observacoes.trim().toUpperCase(),
@@ -291,6 +302,9 @@ export default function AulasPage() {
     setTelefone(formatarTelefone(aula.telefone || ""));
     setData(aula.data || "");
     setHorario(aula.horario || "");
+    setDataOriginal(aula.dataOriginal || "");
+    setDataRemarcada(aula.dataRemarcada || "");
+    setRemarcadoPor(aula.remarcadoPor || "");
     setModalidade(aula.modalidade || "MUSCULAÇÃO");
     setColaboradora(aula.colaboradora || "");
     setObservacoes(aula.observacoes || "");
@@ -637,6 +651,37 @@ Aguardo sua resposta.`;
               <Check label="Venda efetivada" checked={vendaEfetivada} setChecked={setVendaEfetivada} />
             </div>
 
+            {remarcou && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <h3 className="mb-3 text-lg font-black text-red-700">Dados da remarcação</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Data anterior"
+                    value={dataOriginal || data}
+                    setValue={setDataOriginal}
+                    type="date"
+                  />
+
+                  <Input
+                    label="Nova data da aula"
+                    value={dataRemarcada}
+                    setValue={setDataRemarcada}
+                    type="date"
+                  />
+
+                  <Input
+                    label="Quem remarcou"
+                    value={remarcadoPor}
+                    setValue={setRemarcadoPor}
+                  />
+                </div>
+
+                <p className="mt-3 text-sm font-semibold text-red-700">
+                  Ao salvar, a aula ficará agendada para a nova data e a data anterior ficará registrada no histórico da linha.
+                </p>
+              </div>
+            )}
+
             <div className="mt-5">
               <label className="block mb-2 font-semibold">
                 Código da Matrícula
@@ -772,7 +817,21 @@ Aguardo sua resposta.`;
                 {aulasFiltradas.map((aula) => (
                   <tr key={aula.id} className="border-b">
                     <td className="p-3">{aula.nomeAluno}</td>
-                    <td className="p-3">{formatarData(aula.data)}</td>
+                    <td className="p-3">
+                      <div className="font-semibold">{formatarData(aula.data)}</div>
+
+                      {(aula.dataOriginal || aula.dataRemarcada || aula.remarcadoPor) && (
+                        <div className="mt-1 rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">
+                          {aula.dataOriginal && (
+                            <div>Data anterior: {formatarData(aula.dataOriginal)}</div>
+                          )}
+                          {aula.dataRemarcada && (
+                            <div>Nova data: {formatarData(aula.dataRemarcada)}</div>
+                          )}
+                          {aula.remarcadoPor && <div>Remarcado por: {aula.remarcadoPor}</div>}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3">{aula.horario}</td>
                     <td className="p-3">{aula.modalidade}</td>
                     <td className="p-3">{aula.colaboradora || "-"}</td>

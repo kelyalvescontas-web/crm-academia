@@ -52,6 +52,24 @@ async function registrarHistorico({
   });
 }
 
+
+async function garantirColunasRemarcacaoAula() {
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Aula"
+    ADD COLUMN IF NOT EXISTS "dataOriginal" TEXT
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Aula"
+    ADD COLUMN IF NOT EXISTS "dataRemarcada" TEXT
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Aula"
+    ADD COLUMN IF NOT EXISTS "remarcadoPor" TEXT
+  `);
+}
+
 function hojeBrasilISO() {
   const agora = new Date();
 
@@ -74,6 +92,9 @@ async function marcarFaltasAutomaticas(unidadeId: number | null) {
       data: {
         lt: hoje,
       },
+      remarcou: false,
+      veio: false,
+      vendaEfetivada: false,
       OR: [{ status: "AGENDADA" }, { status: "AGENDADO" }, { status: "" }],
     },
     data: {
@@ -90,6 +111,7 @@ async function marcarFaltasAutomaticas(unidadeId: number | null) {
 
 export async function GET(req: Request) {
   try {
+    await garantirColunasRemarcacaoAula();
     const unidadeId = getUnidadeId(req);
 
     await marcarFaltasAutomaticas(unidadeId);
@@ -108,6 +130,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    await garantirColunasRemarcacaoAula();
     const body = await req.json();
     const unidadeId = getUnidadeId(req, body);
     const usuario = dadosUsuario(req, body);
@@ -125,6 +148,9 @@ export async function POST(req: Request) {
         modalidade: body.modalidade,
         colaboradora: body.colaboradora,
         observacoes: body.observacoes || "",
+        dataOriginal: body.dataOriginal || null,
+        dataRemarcada: body.dataRemarcada || null,
+        remarcadoPor: body.remarcadoPor || "",
         status: body.status || "AGENDADA",
         veio: Boolean(body.veio),
         faltou: Boolean(body.faltou),
@@ -167,6 +193,7 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    await garantirColunasRemarcacaoAula();
     const body = await req.json();
     const unidadeId = getUnidadeId(req, body);
     const usuario = dadosUsuario(req, body);
@@ -185,6 +212,9 @@ export async function PUT(req: Request) {
         modalidade: body.modalidade,
         colaboradora: body.colaboradora,
         observacoes: body.observacoes || "",
+        dataOriginal: body.dataOriginal || null,
+        dataRemarcada: body.dataRemarcada || null,
+        remarcadoPor: body.remarcadoPor || "",
         status: body.status || "AGENDADA",
         veio: Boolean(body.veio),
         faltou: Boolean(body.faltou),

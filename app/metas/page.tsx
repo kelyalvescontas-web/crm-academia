@@ -796,8 +796,9 @@ const contratosVisiveis = useMemo(() => {
         // Total de contratos conta TODOS, inclusive mensais.
         pessoa.totalContratos += 1;
 
-        // Contratos válidos NÃO contam mensal.
-        if (String(contrato.permanencia || "").toUpperCase() !== "MENSAL") {
+        // Contratos válidos seguem a mesma regra da meta individual:
+        // não conta mensal, transferência de unidade, troca de modalidade nem cancelado.
+        if (contratoContaComissaoTela(contrato)) {
           pessoa.contratosValidosCalculados = Number(pessoa.contratosValidosCalculados || 0) + 1;
         }
       });
@@ -1292,6 +1293,7 @@ const contratosVisiveis = useMemo(() => {
 
         {pinLiberado && dados && (
           isAdminGeral ? (
+            <>
             <PainelAdminGeral
               dados={dados}
               dashboard={dashboardMetas}
@@ -1334,6 +1336,17 @@ const contratosVisiveis = useMemo(() => {
               onConfigurarMetas={() => router.push("/metas/configuracoes")}
               onExportarPDF={exportarPDFContratos}
             />
+
+            {contratoVisualizar && (
+              <ModalContrato
+                contrato={contratoVisualizar}
+                fechar={() => setContratoVisualizar(null)}
+                editarContrato={editarContrato}
+                formatarData={formatarData}
+                formatarDinheiro={formatarDinheiro}
+              />
+            )}
+            </>
           ) : (
           <>
             <MensagemDia
@@ -1629,7 +1642,7 @@ function PainelAdminGeral({
     const mapa: any = {};
 
     lista
-      .filter((contrato: any) => String(contrato.permanencia || "").toUpperCase() !== "MENSAL")
+      .filter((contrato: any) => contratoContaComissaoTela(contrato))
       .forEach((contrato: any) => {
         const vendedoraOriginal = contrato.vendedora || "NÃO INFORMADO";
         const divididoComOriginal = contrato.divididoCom || "";
@@ -1666,7 +1679,42 @@ function PainelAdminGeral({
       .map((item: any, index) => ({ ...item, posicao: index + 1 }));
   }
 
-  const rankingGerencial = calcularRankingGerencial(contratosUnidade);
+  function metaAtingidaDaVendedora(totalValidos: number) {
+    const metas = [
+      { ordem: 1, quantidade: Number(dados?.premiacaoEmpresa?.metas?.[0]?.quantidade || 30), valor: Number(dados?.premiacaoEmpresa?.metas?.[0]?.valor || 300) },
+      { ordem: 2, quantidade: Number(dados?.premiacaoEmpresa?.metas?.[1]?.quantidade || 40), valor: Number(dados?.premiacaoEmpresa?.metas?.[1]?.valor || 500) },
+      { ordem: 3, quantidade: Number(dados?.premiacaoEmpresa?.metas?.[2]?.quantidade || 50), valor: Number(dados?.premiacaoEmpresa?.metas?.[2]?.valor || 800) },
+      { ordem: 4, quantidade: Number(dados?.premiacaoEmpresa?.metas?.[3]?.quantidade || 60), valor: Number(dados?.premiacaoEmpresa?.metas?.[3]?.valor || 1200) },
+    ].sort((a, b) => a.quantidade - b.quantidade);
+
+    let atingida: any = null;
+    metas.forEach((meta) => {
+      if (Number(totalValidos || 0) >= meta.quantidade) atingida = meta;
+    });
+
+    const proxima = metas.find((meta) => Number(totalValidos || 0) < meta.quantidade);
+
+    if (atingida) {
+      return {
+        atingiu: true,
+        texto: `Meta ${atingida.ordem}`,
+        valor: Number(atingida.valor || 0),
+        detalhe: `${Number(atingida.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+      };
+    }
+
+    return {
+      atingiu: false,
+      texto: proxima ? `Faltam ${Math.max(Number(proxima.quantidade || 0) - Number(totalValidos || 0), 0)} para Meta ${proxima.ordem}` : "-",
+      valor: 0,
+      detalhe: "",
+    };
+  }
+
+  const rankingGerencial = calcularRankingGerencial(contratosUnidade).map((item: any) => ({
+    ...item,
+    metaAtingida: item.metaAtingida || metaAtingidaDaVendedora(Number(item.total || 0)),
+  }));
 
   const aulasExperimentais = Number(dashboard?.totalAulas || 0);
   const aulasHoje = Number(dashboard?.aulasHoje || 0);
@@ -1678,7 +1726,7 @@ function PainelAdminGeral({
   const diariasAtivas = Number(dashboard?.diariasAtivas || 0);
 
   const contratosSemMensal = contratosUnidade.filter(
-    (contrato: any) => String(contrato.permanencia || "").toUpperCase() !== "MENSAL"
+    (contrato: any) => contratoContaComissaoTela(contrato)
   ).length;
 
   const contratosDivididos = contratosUnidade.filter(
@@ -2114,6 +2162,25 @@ function RankingGerencial({ ranking }: any) {
               </div>
             </div>
 
+            <div className="flex flex-1 justify-end px-3">
+              <div
+                className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
+                  item.metaAtingida?.atingiu
+                    ? "bg-green-100 text-green-700"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {item.metaAtingida?.atingiu ? (
+                  <>
+                    <div>{item.metaAtingida.texto}</div>
+                    <div>{item.metaAtingida.detalhe}</div>
+                  </>
+                ) : (
+                  <div>{item.metaAtingida?.texto || "-"}</div>
+                )}
+              </div>
+            </div>
+
             <p className="font-black text-orange-700 text-xl">{item.total}</p>
           </div>
         ))}
@@ -2361,16 +2428,21 @@ function CardMetaCircular({
 }
 
 
+function booleanoValor(valor: any) {
+  return valor === true || String(valor || "").toLowerCase() === "true" || String(valor || "") === "1";
+}
+
 function contratoContaMetaGeralTela(contrato: any) {
-  if (contrato?.cancelado) return false;
-  if (contrato?.trocaModalidade) return false;
+  if (booleanoValor(contrato?.cancelado)) return false;
+  if (booleanoValor(contrato?.trocaModalidade)) return false;
   return true;
 }
 
 function contratoContaComissaoTela(contrato: any) {
   if (!contratoContaMetaGeralTela(contrato)) return false;
-  if (contrato?.transferenciaUnidade) return false;
-  if (String(contrato?.permanencia || "").toUpperCase() === "MENSAL") return false;
+  if (booleanoValor(contrato?.transferenciaUnidade)) return false;
+  const permanencia = String(contrato?.permanencia || "").toUpperCase().trim();
+  if (permanencia === "MENSAL" || permanencia.includes("MENSAL")) return false;
   return true;
 }
 

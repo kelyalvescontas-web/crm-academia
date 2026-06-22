@@ -67,6 +67,11 @@ model Aula {
   observacoes  String?
   colaboradora String
 
+  // Remarcação de aula experimental
+  dataOriginal  String?
+  dataRemarcada String?
+  remarcadoPor  String?
+
   veio             Boolean @default(false)
   faltou           Boolean @default(false)
   remarcou         Boolean @default(false)

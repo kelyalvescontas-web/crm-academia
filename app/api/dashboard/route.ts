@@ -111,28 +111,46 @@ function contarTipos(contratos: any[], unidadeId?: number | null) {
   return resultado;
 }
 
-function adicionarRankingContrato(ranking: any, nome: string, contrato: any, peso: number) {
+function adicionarRankingContrato(
+  ranking: any,
+  nome: string,
+  contrato: any,
+  peso: number,
+  unidadeAtualId?: number | null
+) {
   const chave = normalizar(nome || "NÃO INFORMADO") || "NÃO INFORMADO";
 
   if (!ranking[chave]) {
     ranking[chave] = {
       vendedora: nomeBonito(chave),
-      meios: 0,
+      meiosTotais: 0,
+      meiosValidos: 0,
       contratosTotaisBase: 0,
       contratosValidosBase: 0,
     };
   }
 
-  const permanencia = permanenciaContrato(contrato);
+  const contaTotal = contaNaMetaGeral(contrato, unidadeAtualId);
+  const contaValido = contaNaComissao(contrato, unidadeAtualId);
+
+  if (!contaTotal) return;
 
   if (peso === 0.5) {
-    ranking[chave].meios += 1;
-  } else {
-    ranking[chave].contratosTotaisBase += 1;
+    // Meio mensal entra apenas como meio total/pendente, mas NUNCA como meio válido.
+    // Meio de transferência/troca/cancelado também não entra nos válidos.
+    ranking[chave].meiosTotais += 1;
 
-    if (contaNaComissao(contrato)) {
-      ranking[chave].contratosValidosBase += 1;
+    if (contaValido) {
+      ranking[chave].meiosValidos += 1;
     }
+
+    return;
+  }
+
+  ranking[chave].contratosTotaisBase += 1;
+
+  if (contaValido) {
+    ranking[chave].contratosValidosBase += 1;
   }
 }
 
@@ -174,26 +192,31 @@ function montarRankingContratos(contratos: any[], unidadeAtualId?: number | null
   const ranking: any = {};
 
   contratos.forEach((contrato) => {
-    const dividido = Boolean(contrato.contratoDividido || Number(contrato.quantidadeMeios || 0) > 0 || contrato.divididoCom);
+    const dividido = Boolean(
+      contrato.contratoDividido ||
+        Number(contrato.quantidadeMeios || 0) > 0 ||
+        contrato.divididoCom
+    );
 
     if (dividido && contrato.divididoCom) {
-      adicionarRankingContrato(ranking, contrato.vendedora, contrato, 0.5);
-      adicionarRankingContrato(ranking, contrato.divididoCom, contrato, 0.5);
+      adicionarRankingContrato(ranking, contrato.vendedora, contrato, 0.5, unidadeAtualId);
+      adicionarRankingContrato(ranking, contrato.divididoCom, contrato, 0.5, unidadeAtualId);
     } else {
-      adicionarRankingContrato(ranking, contrato.vendedora, contrato, 1);
+      adicionarRankingContrato(ranking, contrato.vendedora, contrato, 1, unidadeAtualId);
     }
   });
 
   return Object.values(ranking)
     .map((item: any) => {
-      const contratosInteirosDosMeios = Math.floor(Number(item.meios || 0) / 2);
-      const meiosPendentes = Number(item.meios || 0) % 2;
+      const contratosInteirosDosMeiosTotais = Math.floor(Number(item.meiosTotais || 0) / 2);
+      const contratosInteirosDosMeiosValidos = Math.floor(Number(item.meiosValidos || 0) / 2);
+      const meiosPendentes = Number(item.meiosValidos || 0) % 2;
 
       return {
         vendedora: item.vendedora,
         meiosPendentes,
-        contratosTotais: Number(item.contratosTotaisBase || 0) + contratosInteirosDosMeios,
-        contratosValidos: Number(item.contratosValidosBase || 0) + contratosInteirosDosMeios,
+        contratosTotais: Number(item.contratosTotaisBase || 0) + contratosInteirosDosMeiosTotais,
+        contratosValidos: Number(item.contratosValidosBase || 0) + contratosInteirosDosMeiosValidos,
       };
     })
     .sort((a: any, b: any) => Number(b.contratosTotais) - Number(a.contratosTotais));

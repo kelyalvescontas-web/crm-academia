@@ -240,19 +240,43 @@ export default function EditarAgendamentoNutricionistaPage() {
       setConfig(JSON.parse(configSalva));
     }
 
-    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
-    const encontrado = salvos.find((a) => a.id === id);
+    async function carregarAgendamento() {
+      if (!id) return;
 
-    if (encontrado) {
-      setForm({
-        ...encontrado,
-        dataRetorno: encontrado.dataRetorno || "",
-        horaRetorno: encontrado.horaRetorno || "",
-      });
+      try {
+        const response = await fetch(`/api/agenda-nutricionista?id=${id}`, {
+          cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          alert(data.error || "Agendamento não encontrado.");
+          router.push("/agenda-nutricionista");
+          return;
+        }
+
+        setForm({
+          ...data,
+          id: String(data.id || id),
+          dataRetorno: data.dataRetorno || "",
+          horaRetorno: data.horaRetorno || "",
+          tipoAtendimento: Array.isArray(data.tipoAtendimento)
+            ? data.tipoAtendimento
+            : ["Primeira Consulta"],
+          cardapioArquivo: data.cardapioArquivo || null,
+          bioArquivo: data.bioArquivo || null,
+        });
+      } catch (error) {
+        console.log(error);
+        alert("Erro ao carregar agendamento para edição.");
+      }
     }
-  }, [id]);
 
-  function salvar() {
+    carregarAgendamento();
+  }, [id, router]);
+
+  async function salvar() {
     if (!form.nome.trim()) return alert("Preencha o nome do aluno.");
     if (!form.telefone.trim()) return alert("Preencha o telefone.");
     if (!form.dataConsulta || !form.horaConsulta) return alert("Preencha data e horário da consulta.");
@@ -265,48 +289,38 @@ export default function EditarAgendamentoNutricionistaPage() {
       return alert("O horário selecionado para retorno não está liberado nas configurações desta data.");
     }
 
-    const salvos = JSON.parse(localStorage.getItem(STORAGE_AGENDAMENTOS) || "[]") as Agendamento[];
+    try {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
+      const unidadeId =
+        usuarioLogado.cargo === "ADMIN_GERAL"
+          ? localStorage.getItem("unidadeSelecionadaId")
+          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
 
-    const duplicado = salvos.find((a) => a.id !== id && a.dataConsulta === form.dataConsulta && a.horaConsulta === form.horaConsulta);
-    if (duplicado) return alert("Já existe uma consulta agendada neste horário.");
+      const response = await fetch("/api/agenda-nutricionista", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          id,
+          unidadeId: unidadeId || (form as any).unidadeId,
+          usuarioId: usuarioLogado.id,
+          usuarioNome: usuarioLogado.nome,
+          usuarioCargo: usuarioLogado.cargo,
+        }),
+      });
 
-    let atualizados = salvos.map((a) => (a.id === id ? { ...form, id } : a));
+      const data = await response.json();
 
-    if (form.dataRetorno && form.horaRetorno) {
-      const jaExisteRetorno = atualizados.some((a) => a.id !== id && a.dataConsulta === form.dataRetorno && a.horaConsulta === form.horaRetorno);
-
-      if (jaExisteRetorno) {
-        return alert("Não foi possível agendar o retorno automaticamente porque já existe consulta nesse horário de retorno.");
+      if (!response.ok || data.error) {
+        alert(data.error || "Erro ao editar agendamento.");
+        return;
       }
 
-      const retornoExistenteIndex = atualizados.findIndex((a) => a.id === `${id}-retorno`);
-
-      const retorno: Agendamento = {
-        ...form,
-        id: `${id}-retorno`,
-        dataConsulta: form.dataRetorno,
-        horaConsulta: form.horaRetorno,
-        tipoAtendimento: ["Retorno"],
-        tipoConsulta: "Retorno",
-        statusPresenca: "Aguardando confirmação",
-        statusPagamento: form.statusPagamento,
-        observacoes: `Retorno automático de ${form.nome}. Consulta original: ${formatarDataBR(form.dataConsulta)} às ${form.horaConsulta}.`,
-        converteuPlanoPago: false,
-        planoConvertido: "",
-        dataConversao: "",
-        vendedoraConversao: "",
-        createdAt: new Date().toISOString(),
-      };
-
-      if (retornoExistenteIndex >= 0) {
-        atualizados[retornoExistenteIndex] = retorno;
-      } else {
-        atualizados = [...atualizados, retorno];
-      }
+      router.push("/agenda-nutricionista");
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao editar agendamento.");
     }
-
-    localStorage.setItem(STORAGE_AGENDAMENTOS, JSON.stringify(atualizados));
-    router.push("/agenda-nutricionista");
   }
 
   const dataFormatada = useMemo(() => formatarDataBR(form.dataConsulta), [form.dataConsulta]);

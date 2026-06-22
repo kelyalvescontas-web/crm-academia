@@ -74,6 +74,35 @@ function calcularPremiacao(total: number, configuracao: any) {
   };
 }
 
+function metaAtingidaRanking(totalValidos: number, configuracao: any) {
+  const premiacao = calcularPremiacao(Number(totalValidos || 0), configuracao);
+  const atual = premiacao?.atual || { ordem: 0, quantidade: 0, valor: 0 };
+  const proxima = premiacao?.proxima || null;
+
+  if (Number(atual.valor || 0) > 0) {
+    return {
+      atingiu: true,
+      meta: `Meta ${atual.ordem}`,
+      ordem: atual.ordem,
+      quantidade: Number(atual.quantidade || 0),
+      valor: Number(atual.valor || 0),
+      texto: `Meta ${atual.ordem} - R$ ${Number(atual.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    };
+  }
+
+  return {
+    atingiu: false,
+    meta: "",
+    ordem: 0,
+    quantidade: 0,
+    valor: 0,
+    faltam: proxima ? Math.max(Number(proxima.quantidade || 0) - Number(totalValidos || 0), 0) : 0,
+    proximaMeta: proxima ? `Meta ${proxima.ordem}` : "",
+    proximaQuantidade: proxima ? Number(proxima.quantidade || 0) : 0,
+    texto: proxima ? `Faltam ${Math.max(Number(proxima.quantidade || 0) - Number(totalValidos || 0), 0)} para Meta ${proxima.ordem}` : "-",
+  };
+}
+
 function normalizarNome(valor: any) {
   return String(valor || "")
     .normalize("NFD")
@@ -184,7 +213,8 @@ function permanenciaNormalizada(contrato: any) {
 }
 
 function isMensal(contrato: any) {
-  return permanenciaNormalizada(contrato) === "MENSAL";
+  const texto = permanenciaNormalizada(contrato);
+  return texto === "MENSAL" || texto.includes("MENSAL");
 }
 
 function isTransferenciaUnidade(contrato: any) {
@@ -242,6 +272,10 @@ function contratosCreditadosParaUsuario(
 
   const meiosDivididos = contratosConsiderados.filter((contrato) => {
     if (!contrato.contratoDividido) return false;
+
+    // Contrato mensal dividido nunca entra na soma dos meios.
+    // Ex.: meio mensal + meio anual NÃO pode virar 1 contrato inteiro.
+    if (isMensal(contrato)) return false;
 
     const vendedora = normalizarNome(contrato.vendedora);
     const divididoCom = normalizarNome(contrato.divididoCom);
@@ -441,9 +475,11 @@ export async function GET(req: Request) {
         posicao: index + 1,
         nome: item.nome,
         total: item.total,
+        contratosValidos: item.total,
         proprios: item.proprios,
         divididosCreditados: item.divididosCreditados,
         meiosPendentes: item.meiosPendentes,
+        metaAtingida: metaAtingidaRanking(item.total, configuracao),
       }));
 
     const meusContratosVisiveis = contratos.filter((contrato) => {

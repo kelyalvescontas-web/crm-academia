@@ -244,7 +244,7 @@ export default function EditarAgendamentoNutricionistaPage() {
       if (!id) return;
 
       try {
-        const response = await fetch(`/api/agenda-nutricionista?id=${id}`, {
+        const response = await fetch(`/api/agenda-nutricionista?id=${encodeURIComponent(id)}`, {
           cache: "no-store",
         });
 
@@ -259,17 +259,36 @@ export default function EditarAgendamentoNutricionistaPage() {
         setForm({
           ...data,
           id: String(data.id || id),
+          nome: data.nome || "",
+          telefone: data.telefone || "",
+          matricula: data.matricula || "",
+          unidade: data.unidade || "",
+          dataConsulta: data.dataConsulta || hojeISO(),
+          horaConsulta: data.horaConsulta || "",
+          tipoConsulta: data.tipoConsulta || "",
+          statusPresenca: data.statusPresenca || "Aguardando confirmação",
+          statusPagamento: data.statusPagamento || "Free",
+          quemAgendou: data.quemAgendou || "",
+          tipoAtendimento: Array.isArray(data.tipoAtendimento) && data.tipoAtendimento.length ? data.tipoAtendimento : ["Primeira Consulta"],
+          diasRetorno: data.diasRetorno || "",
           dataRetorno: data.dataRetorno || "",
           horaRetorno: data.horaRetorno || "",
-          tipoAtendimento: Array.isArray(data.tipoAtendimento)
-            ? data.tipoAtendimento
-            : ["Primeira Consulta"],
+          cardapioPronto: Boolean(data.cardapioPronto),
+          cardapioEnviado: Boolean(data.cardapioEnviado),
+          bioPronta: Boolean(data.bioPronta),
+          bioEnviada: Boolean(data.bioEnviada),
           cardapioArquivo: data.cardapioArquivo || null,
           bioArquivo: data.bioArquivo || null,
+          observacoes: data.observacoes || "",
+          converteuPlanoPago: Boolean(data.converteuPlanoPago),
+          planoConvertido: data.planoConvertido || "",
+          dataConversao: data.dataConversao || "",
+          vendedoraConversao: data.vendedoraConversao || "",
+          createdAt: data.createdAt || new Date().toISOString(),
         });
       } catch (error) {
-        console.log(error);
-        alert("Erro ao carregar agendamento para edição.");
+        console.log("Erro ao carregar agendamento:", error);
+        alert("Erro ao carregar os dados do agendamento.");
       }
     }
 
@@ -292,9 +311,10 @@ export default function EditarAgendamentoNutricionistaPage() {
     try {
       const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "{}");
       const unidadeId =
-        usuarioLogado.cargo === "ADMIN_GERAL"
+        (form as any).unidadeId ||
+        (usuarioLogado.cargo === "ADMIN_GERAL"
           ? localStorage.getItem("unidadeSelecionadaId")
-          : String(usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId") || "");
+          : usuarioLogado.unidadeId || localStorage.getItem("unidadeSelecionadaId"));
 
       const response = await fetch("/api/agenda-nutricionista", {
         method: "PUT",
@@ -302,7 +322,7 @@ export default function EditarAgendamentoNutricionistaPage() {
         body: JSON.stringify({
           ...form,
           id,
-          unidadeId: unidadeId || (form as any).unidadeId,
+          unidadeId: unidadeId ? Number(unidadeId) : null,
           usuarioId: usuarioLogado.id,
           usuarioNome: usuarioLogado.nome,
           usuarioCargo: usuarioLogado.cargo,
@@ -318,8 +338,8 @@ export default function EditarAgendamentoNutricionistaPage() {
 
       router.push("/agenda-nutricionista");
     } catch (error) {
-      console.log(error);
-      alert("Erro ao editar agendamento.");
+      console.log("Erro ao salvar agendamento:", error);
+      alert("Erro ao salvar agendamento.");
     }
   }
 
